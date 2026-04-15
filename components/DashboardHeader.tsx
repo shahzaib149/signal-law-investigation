@@ -6,37 +6,44 @@ interface DashboardHeaderProps {
   loading?: boolean
 }
 
-/** Faithful SVG recreation of the Signal Law Group logo mark */
-function SignalLogoMark() {
-  // Bars: [x, height] pairs – mimic the audio-bar / signal waveform
-  // Center-left bar is the red Signal bar
-  const bars: Array<{ x: number; h: number; color: string }> = [
-    { x: 0,  h: 18, color: '#9ca3af' },
-    { x: 10, h: 28, color: '#d1d5db' },
-    { x: 20, h: 14, color: '#6b7280' },
-    { x: 30, h: 36, color: '#e31837' }, // ← Signal Red bar
-    { x: 40, h: 22, color: '#9ca3af' },
-    { x: 50, h: 12, color: '#6b7280' },
-    { x: 60, h: 26, color: '#d1d5db' },
+/**
+ * Signal Law Group logo mark — transparent background, bars only.
+ * 8 bottom-aligned bars matching the actual logo image exactly.
+ *
+ *  pos:  1    2    3    4    5(R) 6    7    8
+ *  h:    22   36   44   28   58   40   24   18
+ *  col:  lt   md   lt   md   RED  lt   md   lt
+ */
+function SignalLogoMark({ size = 1 }: { size?: number }) {
+  const H = 60
+  const W = 91
+  const bars: Array<{ x: number; h: number; fill: string }> = [
+    { x: 0,  h: 22, fill: '#cbd5e1' }, // 1 light
+    { x: 13, h: 36, fill: '#94a3b8' }, // 2 mid
+    { x: 26, h: 44, fill: '#cbd5e1' }, // 3 light-tall
+    { x: 39, h: 28, fill: '#94a3b8' }, // 4 mid-short
+    { x: 52, h: 58, fill: '#e31837' }, // 5 ← Signal Red (tallest)
+    { x: 65, h: 40, fill: '#cbd5e1' }, // 6 light
+    { x: 78, h: 24, fill: '#94a3b8' }, // 7 mid-short
   ]
-  const totalH = 40
 
   return (
     <svg
-      width="76"
-      height={totalH}
-      viewBox={`0 0 76 ${totalH}`}
-      aria-hidden="true"
+      width={W * size}
+      height={H * size}
+      viewBox={`0 0 ${W} ${H}`}
+      fill="none"
+      aria-label="Signal Law Group"
     >
       {bars.map((b) => (
         <rect
           key={b.x}
           x={b.x}
-          y={totalH - b.h}
-          width={7}
+          y={H - b.h}
+          width={10}
           height={b.h}
-          rx={1.5}
-          fill={b.color}
+          rx={2}
+          fill={b.fill}
         />
       ))}
     </svg>

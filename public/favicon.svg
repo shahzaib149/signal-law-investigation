@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60" fill="none">
+  <!-- Signal Law Group — bar chart logo mark, transparent background -->
+  <!-- 8 bars, bottom-aligned, 5th bar is Signal Red -->
+  <!-- bar 1 --> <rect x="0"  y="38" width="8" height="22" rx="2" fill="#cbd5e1"/>
+  <!-- bar 2 --> <rect x="11" y="22" width="8" height="38" rx="2" fill="#94a3b8"/>
+  <!-- bar 3 --> <rect x="22" y="16" width="8" height="44" rx="2" fill="#cbd5e1"/>
+  <!-- bar 4 --> <rect x="33" y="32" width="8" height="28" rx="2" fill="#94a3b8"/>
+  <!-- bar 5 RED --> <rect x="44" y="2"  width="8" height="58" rx="2" fill="#e31837"/>
+  <!-- bar 6 --> <rect x="55" y="20" width="8" height="40" rx="2" fill="#cbd5e1"/>
+  <!-- bar 7 --> <rect x="66" y="36" width="8" height="24" rx="2" fill="#94a3b8"/>
+</svg>

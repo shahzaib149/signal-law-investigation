@@ -13,10 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vigilant Dashboard — Signal Law Group",
+  title: "Signal Law Group — Vigilant",
   description:
     "Internal investigation management dashboard. Review AI-generated topics and launch full research investigations.",
   robots: "noindex, nofollow",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({
