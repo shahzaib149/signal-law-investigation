@@ -5,7 +5,7 @@ const statusStyles: Record<InvestigationStatus, string> = {
   Pending:           'bg-gray-100    text-gray-600    border border-gray-200',
   Intake:            'bg-blue-50     text-blue-700    border border-blue-200',
   Generating:        'bg-amber-50    text-amber-700   border border-amber-200 badge-generating',
-  'Active Research': 'bg-purple-50   text-purple-700  border border-purple-200',
+  'Active Research': 'bg-amber-50    text-amber-700   border border-amber-200',
   Approved:          'bg-emerald-50  text-emerald-700 border border-emerald-200',
   Published:         'bg-green-100   text-green-800   border border-green-300',
   Rejected:          'bg-red-50      text-red-700     border border-red-200',

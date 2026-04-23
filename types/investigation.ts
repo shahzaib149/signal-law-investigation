@@ -1,3 +1,5 @@
+/* ─── Airtable ──────────────────────────────────────────────────────── */
+
 /** Full investigation record from Airtable */
 export interface Investigation {
   id: string
@@ -8,9 +10,11 @@ export interface Investigation {
   why_it_matters: string
   investigation_status: InvestigationStatus
   submitted_at: string        // createdTime — read-only
+  last_modified: string
   suggested_date: string
   wordpress_url: string
   wordpress_press_release_url: string
+  featured_media_url?: string | null   // populated client-side from WP batch fetch
 }
 
 /** Lighter shape used on the status board */
@@ -36,5 +40,68 @@ export type InvestigationStatus =
   | 'Published'
   | 'Rejected'
 
-/** Category filter — no Risk Tier field exists yet in Airtable */
 export type FilterOption = 'All' | string
+
+/* ─── WordPress ─────────────────────────────────────────────────────── */
+
+export interface WordPressMeta {
+  vigilant_risk_score:            string
+  escalation_momentum_score:      string
+  litigation_readiness_index:     string
+  legal_process_indicator:        string
+  threat_horizon_index:           string
+  case_impact_score:              string
+  loss_severity_band:             string
+  executive_intelligence_summary: string
+  investigation_status:           string
+  last_updated:                   string
+}
+
+export interface WordPressPost {
+  id: number
+  title: string
+  content: string               // rendered HTML
+  status: string
+  date: string
+  link: string                  // permalink (becomes canonical after publish)
+  featured_media: number        // media ID; 0 if none
+  featured_media_url: string | null
+  meta: WordPressMeta
+}
+
+/** Raw shapes — used internally by lib/wordpress.ts */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface WordPressPostRaw {
+  id: number
+  title: { rendered?: string; raw?: string }
+  content: { rendered?: string; raw?: string }
+  status: string
+  date: string
+  link: string
+  featured_media: number
+  meta?: Record<string, unknown>
+  acf?: Record<string, unknown>   // ACF REST API fields
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{ source_url?: string }>
+  }
+}
+
+export interface WordPressMediaRaw {
+  id: number
+  source_url: string
+  media_details?: {
+    width?: number
+    height?: number
+  }
+}
+
+/* ─── Scoring view-model ────────────────────────────────────────────── */
+
+export type ScoreBand = 'Green' | 'Yellow' | 'Red' | 'Low' | 'Moderate' | 'High' | null
+
+export interface ParsedScore {
+  key: string           // short tag: VRS, EMS, LRI, LPI, LSB, THI, CIS
+  label: string         // human name
+  value: string         // "75" or "Accelerating" or "$50-250m"
+  band: ScoreBand       // color tier
+}

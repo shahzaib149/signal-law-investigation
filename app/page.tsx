@@ -6,8 +6,19 @@ import DashboardHeader from '@/components/DashboardHeader'
 import TopicCard from '@/components/TopicCard'
 import StatusBoard from '@/components/StatusBoard'
 import LaunchModal from '@/components/LaunchModal'
+import InvestigationsView from '@/components/InvestigationsView'
+
+type Tab = 'topics' | 'investigations'
 
 export default function Dashboard() {
+  const [tab, setTab]                     = useState<Tab>('topics')
+
+  /* Read ?tab= from URL on mount */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const t = params.get('tab')
+    if (t === 'investigations') setTab('investigations')
+  }, [])
   const [topics, setTopics]               = useState<Investigation[]>([])
   const [statusItems, setStatusItems]     = useState<StatusItem[]>([])
   const [filter, setFilter]               = useState<string>('All')
@@ -89,7 +100,7 @@ export default function Dashboard() {
     [topics, filter]
   )
 
-  /* ─── Skeleton ───────────────────────────────────────────────── */
+  /* ─── Sub-components ─────────────────────────────────────────── */
   const SkeletonGrid = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {Array.from({ length: 8 }).map((_, i) => (
@@ -99,7 +110,6 @@ export default function Dashboard() {
     </div>
   )
 
-  /* ─── Empty state ────────────────────────────────────────────── */
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center py-24 rounded-xl bg-gray-50"
       style={{ border: '1px dashed #d1d5db' }}>
@@ -121,74 +131,83 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
 
-      {/* Black sticky header */}
+      {/* Sticky header — tabs live inside the header */}
       <div className="sticky top-0 z-40">
-        <DashboardHeader topicCount={topics.length} onRefresh={handleRefresh} loading={refreshing} />
+        <DashboardHeader
+          onRefresh={handleRefresh}
+          loading={refreshing}
+          tab={tab}
+          onTabChange={setTab}
+          topicCount={topics.length}
+        />
       </div>
 
-      {/* White body */}
+      {/* Body */}
       <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Page heading */}
-        <div className="mb-6">
-          <h2 className="text-sm font-bold text-gray-900 uppercase tracking-[0.15em]">
-            Today&apos;s Investigation Topics
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            AI-generated candidates · pending review
-          </p>
-        </div>
+        {/* ── Tab: Today's Topics ── */}
+        {tab === 'topics' && (
+          <>
+            <div className="mb-6">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-[0.15em]">
+                Today&apos;s Investigation Topics
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                AI-generated candidates · pending review
+              </p>
+            </div>
 
-        {/* Category filter pills */}
-        {categories.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {categories.map((cat) => {
-              const isActive = filter === cat
-              const count = cat === 'All' ? topics.length : topics.filter((t) => t.investigation_category === cat).length
-              return (
-                <button key={cat} onClick={() => setFilter(cat)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
-                  style={isActive
-                    ? { backgroundColor: '#e31837', color: '#fff',    border: '1px solid #e31837' }
-                    : { backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb' }
-                  }
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e31837' }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e5e7eb' }}
-                >
-                  {cat}
-                  <span className="ml-1.5 tabular-nums opacity-60">{count}</span>
-                </button>
-              )
-            })}
-          </div>
+            {categories.length > 1 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {categories.map((cat) => {
+                  const isActive = filter === cat
+                  const count = cat === 'All' ? topics.length : topics.filter((t) => t.investigation_category === cat).length
+                  return (
+                    <button key={cat} onClick={() => setFilter(cat)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                      style={isActive
+                        ? { backgroundColor: '#e31837', color: '#fff',    border: '1px solid #e31837' }
+                        : { backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb' }
+                      }
+                      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e31837' }}
+                      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e5e7eb' }}
+                    >
+                      {cat}
+                      <span className="ml-1.5 tabular-nums opacity-60">{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-6 rounded-lg px-4 py-3 text-xs flex items-center gap-2"
+                style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', color: '#dc2626' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {error} —{' '}
+                <button onClick={handleRefresh} className="underline underline-offset-2">retry</button>
+              </div>
+            )}
+
+            {loading ? <SkeletonGrid /> : filteredTopics.length === 0 ? <EmptyState /> : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredTopics.map((topic) => (
+                  <TopicCard key={topic.id} topic={topic} onLaunch={() => handleLaunch(topic)} />
+                ))}
+              </div>
+            )}
+
+            <StatusBoard items={statusItems} />
+          </>
         )}
 
-        {/* Error banner */}
-        {error && (
-          <div className="mb-6 rounded-lg px-4 py-3 text-xs flex items-center gap-2"
-            style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', color: '#dc2626' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            {error} —{' '}
-            <button onClick={handleRefresh} className="underline underline-offset-2">retry</button>
-          </div>
-        )}
-
-        {/* Topic grid */}
-        {loading ? <SkeletonGrid /> : filteredTopics.length === 0 ? <EmptyState /> : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredTopics.map((topic) => (
-              <TopicCard key={topic.id} topic={topic} onLaunch={() => handleLaunch(topic)} />
-            ))}
-          </div>
-        )}
-
-        {/* Status board */}
-        <StatusBoard items={statusItems} />
+        {/* ── Tab: Investigations ── */}
+        {tab === 'investigations' && <InvestigationsView />}
       </main>
 
       {/* Launch modal */}
@@ -203,3 +222,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

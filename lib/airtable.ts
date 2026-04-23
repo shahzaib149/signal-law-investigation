@@ -20,6 +20,7 @@ function mapToInvestigation(r: any): Investigation {
     why_it_matters:              r.fields['Why It Matters']                ?? '',
     investigation_status:        r.fields['Investigation Status']          ?? 'Pending',
     submitted_at:                r.fields['Submitted At']                  ?? '',
+    last_modified:               r.fields['Last Modified']                 ?? '',
     suggested_date:              r.fields['Suggested Date']                ?? '',
     wordpress_url:               r.fields['WordPress Research Profile URL'] ?? r.fields['WordPress URL'] ?? '',
     wordpress_press_release_url: r.fields['WordPress Press Release URL']   ?? '',
@@ -84,7 +85,34 @@ export async function fetchStatusItems(): Promise<StatusItem[]> {
   return (data.records ?? []).map(mapToStatusItem)
 }
 
-/** GET a single record by ID (used to build webhook payload) */
+/**
+ * GET records with an investigation attached — i.e. status is
+ * Active Research OR Approved OR Published. Rejected is excluded.
+ * Sorted by Last Modified desc.
+ */
+export async function fetchCompletedInvestigations(): Promise<Investigation[]> {
+  const params = new URLSearchParams({
+    filterByFormula: `OR({Investigation Status}='Active Research', {Investigation Status}='Approved', {Investigation Status}='Published')`,
+    'sort[0][field]':     'Last Modified',
+    'sort[0][direction]': 'desc',
+    maxRecords: '100',
+  })
+
+  const res = await fetch(`${BASE_URL}?${params}`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Airtable fetchCompletedInvestigations failed: ${JSON.stringify(err)}`)
+  }
+
+  const data = await res.json()
+  return (data.records ?? []).map(mapToInvestigation)
+}
+
+/** GET a single record by ID */
 export async function fetchRecordById(recordId: string): Promise<Investigation | null> {
   const res = await fetch(`${BASE_URL}/${recordId}`, {
     headers: authHeaders(),
@@ -113,5 +141,30 @@ export async function launchInvestigation(recordId: string): Promise<void> {
   if (!res.ok) {
     const err = await res.json()
     throw new Error(`Airtable launchInvestigation failed: ${JSON.stringify(err)}`)
+  }
+}
+
+/**
+ * Mark an Airtable record as Published and replace the draft preview URL
+ * with the live WordPress permalink.
+ */
+export async function markRecordPublished(
+  recordId: string,
+  permalink: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/${recordId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      fields: {
+        'Investigation Status': 'Published',
+        'WordPress Research Profile URL': permalink,
+      },
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Airtable markRecordPublished failed: ${JSON.stringify(err)}`)
   }
 }
