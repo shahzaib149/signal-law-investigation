@@ -13,11 +13,16 @@ type Tab = 'topics' | 'investigations'
 export default function Dashboard() {
   const [tab, setTab]                     = useState<Tab>('topics')
 
-  /* Read ?tab= from URL on mount */
+  /* Sync tab with URL — handles both initial load and browser back/forward */
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const t = params.get('tab')
-    if (t === 'investigations') setTab('investigations')
+    function syncTab() {
+      const params = new URLSearchParams(window.location.search)
+      const t = params.get('tab')
+      setTab(t === 'investigations' ? 'investigations' : 'topics')
+    }
+    syncTab()
+    window.addEventListener('popstate', syncTab)
+    return () => window.removeEventListener('popstate', syncTab)
   }, [])
   const [topics, setTopics]               = useState<Investigation[]>([])
   const [statusItems, setStatusItems]     = useState<StatusItem[]>([])
@@ -143,7 +148,7 @@ export default function Dashboard() {
       </div>
 
       {/* Body */}
-      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
 
         {/* ── Tab: Today's Topics ── */}
         {tab === 'topics' && (
@@ -158,25 +163,27 @@ export default function Dashboard() {
             </div>
 
             {categories.length > 1 && (
-              <div className="flex flex-wrap gap-2 mb-6">
-                {categories.map((cat) => {
-                  const isActive = filter === cat
-                  const count = cat === 'All' ? topics.length : topics.filter((t) => t.investigation_category === cat).length
-                  return (
-                    <button key={cat} onClick={() => setFilter(cat)}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
-                      style={isActive
-                        ? { backgroundColor: '#e31837', color: '#fff',    border: '1px solid #e31837' }
-                        : { backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb' }
-                      }
-                      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e31837' }}
-                      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e5e7eb' }}
-                    >
-                      {cat}
-                      <span className="ml-1.5 tabular-nums opacity-60">{count}</span>
-                    </button>
-                  )
-                })}
+              <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
+                <div className="flex gap-2 px-4 sm:px-0 pb-1 min-w-max sm:min-w-0 sm:flex-wrap">
+                  {categories.map((cat) => {
+                    const isActive = filter === cat
+                    const count = cat === 'All' ? topics.length : topics.filter((t) => t.investigation_category === cat).length
+                    return (
+                      <button key={cat} onClick={() => setFilter(cat)}
+                        className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                        style={isActive
+                          ? { backgroundColor: '#e31837', color: '#fff',    border: '1px solid #e31837' }
+                          : { backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb' }
+                        }
+                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e31837' }}
+                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e5e7eb' }}
+                      >
+                        {cat}
+                        <span className="ml-1.5 tabular-nums opacity-60">{count}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
 

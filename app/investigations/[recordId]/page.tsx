@@ -156,13 +156,13 @@ export default function InvestigationDetailPage({
       </div>
 
       {loading && (
-        <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <DetailSkeleton />
         </div>
       )}
 
       {!loading && error && !record && (
-        <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <ErrorPanel title="Couldn't load investigation" message={error} onRetry={loadAll} />
         </div>
       )}
@@ -187,8 +187,7 @@ export default function InvestigationDetailPage({
           )}
 
           {/* ── Hero ── */}
-          <section className="relative overflow-hidden" style={{ minHeight: '420px' }}>
-            {/* Background image */}
+          <section className="relative overflow-hidden" style={{ minHeight: 'clamp(300px, 40vw, 460px)' }}>
             {post?.featured_media_url ? (
               <Image
                 src={post.featured_media_url}
@@ -202,47 +201,41 @@ export default function InvestigationDetailPage({
             ) : (
               <div className="absolute inset-0" style={{ backgroundColor: '#111827' }} />
             )}
-            {/* Dark overlay — heavier than before to match reference */}
             <div
               className="absolute inset-0"
-              style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.80) 100%)' }}
+              style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.82) 100%)' }}
             />
 
-            {/* Content — inside max-width container so text sits centered */}
             <div
               className="relative z-10 flex flex-col justify-end"
-              style={{ minHeight: '420px' }}
+              style={{ minHeight: 'clamp(300px, 40vw, 460px)' }}
             >
-              <div className="max-w-screen-xl mx-auto w-full px-6 sm:px-10 pb-10 pt-16">
-                <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-4 max-w-3xl">
+              <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-10 pb-7 sm:pb-10 pt-12 sm:pt-16">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight mb-3 sm:mb-4 max-w-3xl">
                   {post?.title || record.company_name}
                 </h1>
 
-                {/* Description from executive summary or brief topic */}
                 {(post?.meta.executive_intelligence_summary || record.brief_topic) && (
                   <p
-                    className="text-sm text-white mb-6 max-w-2xl leading-relaxed"
+                    className="text-xs sm:text-sm text-white mb-4 sm:mb-6 max-w-2xl leading-relaxed line-clamp-3 sm:line-clamp-none"
                     style={{ opacity: 0.88 }}
                   >
                     {post?.meta.executive_intelligence_summary || record.brief_topic}
                   </p>
                 )}
 
-                {/* White solid pills — matching reference design */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <StatusPill status={record.investigation_status} />
                   {lastUpdated && <SolidPill label={`Last Updated: ${lastUpdated}`} bold="Last Updated:" />}
                   {record.wordpress_press_release_url && (
                     <SolidPill label="Press Release" href={record.wordpress_press_release_url} external />
                   )}
-
-                  {/* Publish / View live */}
                   {isPublished && (record.wordpress_url || post?.link) ? (
                     <a
                       href={record.wordpress_url || post?.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-5 py-2.5 rounded-full text-sm font-bold text-white transition-all"
+                      className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white transition-all"
                       style={{ backgroundColor: '#047857', border: '1.5px solid #047857' }}
                     >
                       View Live ↗
@@ -250,7 +243,7 @@ export default function InvestigationDetailPage({
                   ) : !isPublished && post ? (
                     <button
                       onClick={() => { setPublishError(null); setShowConfirm(true) }}
-                      className="px-5 py-2.5 rounded-full text-sm font-bold text-white"
+                      className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-white"
                       style={{ backgroundColor: '#e31837', border: '1.5px solid #e31837' }}
                     >
                       Publish to WordPress
@@ -264,34 +257,35 @@ export default function InvestigationDetailPage({
           {/* ── Scores band ── */}
           {scores.length > 0 && (
             <section style={{ backgroundColor: '#2d3748' }}>
-              <div className="max-w-screen-xl mx-auto px-6 sm:px-10 py-8">
+              <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
 
-                {/* 3 primary scores */}
+                {/* 3 primary scores — single col on mobile, 3-col on sm+ */}
                 <div
-                  className="grid grid-cols-1 sm:grid-cols-3 mb-6"
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '28px' }}
+                  className="grid grid-cols-3 mb-6"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '24px' }}
                 >
                   {[
                     { score: scores[0], label: 'Vigilant Risk Score', icon: <ShieldIcon /> },
-                    { score: scores[1], label: 'Escalation Momentum Score', icon: <TrendIcon /> },
-                    { score: scores[2], label: 'Litigation Readiness Index', icon: <ClipboardIcon /> },
+                    { score: scores[1], label: 'Escalation Momentum', icon: <TrendIcon /> },
+                    { score: scores[2], label: 'Litigation Readiness', icon: <ClipboardIcon /> },
                   ].map(({ score, label, icon }, i) => (
                     <div
                       key={i}
-                      className="flex flex-col items-center gap-1.5 py-4 sm:py-0 text-center"
+                      className="flex flex-col items-center gap-1 sm:gap-1.5 px-2 sm:px-0 py-2 sm:py-0 text-center"
                       style={i < 2 ? { borderRight: '1px solid rgba(255,255,255,0.1)' } : {}}
                     >
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center mb-1"
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-0.5 sm:mb-1"
                         style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
                         {icon}
                       </div>
-                      <p style={{ color: '#9ca3af', fontSize: '13px' }}>{label}</p>
+                      <p className="hidden sm:block" style={{ color: '#9ca3af', fontSize: '13px' }}>{label}</p>
+                      <p className="sm:hidden text-center" style={{ color: '#9ca3af', fontSize: '10px', lineHeight: 1.2 }}>{label}</p>
                       <p style={{
                         color: 'white',
-                        fontSize: i === 0 ? '2.4rem' : '1.4rem',
+                        fontSize: i === 0 ? 'clamp(1.4rem, 4vw, 2.4rem)' : 'clamp(1rem, 3vw, 1.4rem)',
                         fontWeight: 700,
                         lineHeight: 1,
-                        marginTop: '4px',
+                        marginTop: '2px',
                       }}>
                         {score?.value ?? '—'}
                       </p>
@@ -299,25 +293,25 @@ export default function InvestigationDetailPage({
                   ))}
                 </div>
 
-                {/* 4 sub-metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                {/* 4 sub-metrics — 2 col on mobile, 4 col on sm+ */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
                   {scores.slice(3).map((s, i) => (
-                    <div key={s.key} className="flex items-start gap-3">
+                    <div key={s.key} className="flex items-start gap-2 sm:gap-3">
                       <div
-                        className="w-8 h-8 rounded flex items-center justify-center shrink-0 mt-0.5"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center shrink-0 mt-0.5"
                         style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
                       >
                         {subMetricIcon(i)}
                       </div>
-                      <div>
-                        <p style={{ color: '#9ca3af', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.3 }}>
+                      <div className="min-w-0">
+                        <p style={{ color: '#9ca3af', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.3 }}>
                           {s.label} <strong>{s.key}</strong>
                         </p>
-                        <p style={{ color: 'white', fontSize: '1.4rem', fontWeight: 700, marginTop: '2px', lineHeight: 1.1 }}>
+                        <p style={{ color: 'white', fontSize: 'clamp(1rem, 3vw, 1.4rem)', fontWeight: 700, marginTop: '2px', lineHeight: 1.1 }}>
                           {s.value}
                         </p>
                         {s.band && (
-                          <p style={{ color: '#9ca3af', fontSize: '11px', marginTop: '2px' }}>{s.band}</p>
+                          <p style={{ color: '#9ca3af', fontSize: '10px', marginTop: '2px' }}>{s.band}</p>
                         )}
                       </div>
                     </div>
@@ -345,8 +339,8 @@ export default function InvestigationDetailPage({
 
           {/* ── Main content + sidebar ── */}
           {post && (
-            <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
 
                 {/* Left: sections */}
                 <div className="lg:col-span-2 flex flex-col gap-5">

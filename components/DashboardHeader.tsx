@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 
 type Tab = 'topics' | 'investigations'
@@ -39,25 +40,28 @@ export default function DashboardHeader({
   onTabChange,
   topicCount,
 }: DashboardHeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
     <header style={{ backgroundColor: '#000000', borderBottom: '1px solid #1a1a1a' }}>
-      <div className="flex items-center h-14 px-5">
+      {/* ── Main bar ── */}
+      <div className="flex items-center h-14 px-4 sm:px-5 gap-2">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 shrink-0" style={{ textDecoration: 'none' }}>
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0" style={{ textDecoration: 'none' }}>
           <SignalLogoMark />
-          <div className="flex items-baseline gap-1.5 leading-none">
-            <span className="text-base font-black tracking-tight text-white uppercase">SIGNAL</span>
-            <span className="text-sm font-light text-white">Law Group</span>
+          <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none">
+            <span className="text-sm sm:text-base font-black tracking-tight text-white uppercase">SIGNAL</span>
+            <span className="hidden xs:inline text-xs sm:text-sm font-light text-white">Law Group</span>
           </div>
         </Link>
 
-        {/* Separator */}
-        <span className="mx-5 h-6 w-px shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
+        {/* Separator — hidden on mobile */}
+        <span className="hidden sm:block mx-3 lg:mx-5 h-6 w-px shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
 
-        {/* Nav: active tabs on main dashboard, nav links on detail pages */}
+        {/* Desktop Nav: tabs or page links */}
         {onTabChange ? (
-          <nav className="flex items-center gap-1 flex-1">
+          <nav className="hidden sm:flex items-center gap-1 flex-1">
             <TabBtn
               label="Today's Topics"
               count={topicCount}
@@ -72,7 +76,7 @@ export default function DashboardHeader({
             />
           </nav>
         ) : (
-          <nav className="flex items-center gap-1 flex-1">
+          <nav className="hidden sm:flex items-center gap-1 flex-1">
             <Link
               href="/?tab=topics"
               className="relative flex items-center gap-1.5 px-3 py-1 text-sm font-semibold transition-colors focus:outline-none"
@@ -91,33 +95,40 @@ export default function DashboardHeader({
           </nav>
         )}
 
-        {/* Right: CIRCLE + social icons + refresh */}
-        <div className="flex items-center gap-2 shrink-0 ml-4">
+        {/* Spacer pushes right section on mobile */}
+        <div className="flex-1 sm:hidden" />
+
+        {/* Right section */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 sm:ml-4">
+
+          {/* CIRCLE — hidden on smallest screens */}
           <button
-            className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white tracking-wider"
+            className="hidden xs:flex px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold text-white tracking-wider"
             style={{ backgroundColor: '#e31837' }}
           >
             CIRCLE
           </button>
 
-          <SocialIcon aria-label="Twitter">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.256 5.636L18.244 2.25z" />
-            </svg>
-          </SocialIcon>
+          {/* Social icons — only on lg+ */}
+          <div className="hidden lg:flex items-center gap-1.5">
+            <SocialIcon aria-label="Twitter">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.256 5.636L18.244 2.25z" />
+              </svg>
+            </SocialIcon>
+            <SocialIcon aria-label="LinkedIn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+              </svg>
+            </SocialIcon>
+            <SocialIcon aria-label="YouTube">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+              </svg>
+            </SocialIcon>
+          </div>
 
-          <SocialIcon aria-label="LinkedIn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-            </svg>
-          </SocialIcon>
-
-          <SocialIcon aria-label="YouTube">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-            </svg>
-          </SocialIcon>
-
+          {/* Refresh */}
           <button
             onClick={onRefresh}
             disabled={loading}
@@ -136,19 +147,97 @@ export default function DashboardHeader({
               <path d="M8 16H3v5" />
             </svg>
           </button>
+
+          {/* Hamburger — mobile only, only when tabs exist */}
+          {onTabChange && (
+            <button
+              className="sm:hidden w-7 h-7 flex items-center justify-center rounded focus:outline-none"
+              style={{ border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.7)' }}
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+              )}
+            </button>
+          )}
+
+          {/* Detail page on mobile — show a compact back link instead of hamburger */}
+          {!onTabChange && (
+            <Link
+              href="/?tab=investigations"
+              className="sm:hidden flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold focus:outline-none"
+              style={{ border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 5l-7 7 7 7" />
+              </svg>
+              Back
+            </Link>
+          )}
         </div>
       </div>
+
+      {/* ── Mobile dropdown menu (tabs only) ── */}
+      {mobileMenuOpen && onTabChange && (
+        <div
+          className="sm:hidden border-t"
+          style={{ backgroundColor: '#0a0a0a', borderColor: '#1a1a1a' }}
+        >
+          <div className="px-4 py-2 flex flex-col">
+            <MobileTabBtn
+              label="Today's Topics"
+              count={topicCount}
+              active={tab === 'topics'}
+              onClick={() => { onTabChange('topics'); setMobileMenuOpen(false) }}
+            />
+            <MobileTabBtn
+              label="Investigations"
+              active={tab === 'investigations'}
+              onClick={() => { onTabChange('investigations'); setMobileMenuOpen(false) }}
+            />
+            {/* CIRCLE on very small screens */}
+            <div className="flex items-center gap-2 py-2 border-t mt-1" style={{ borderColor: '#1a1a1a' }}>
+              <button
+                className="px-3 py-1.5 rounded-full text-[11px] font-bold text-white tracking-wider"
+                style={{ backgroundColor: '#e31837' }}
+              >
+                CIRCLE
+              </button>
+              <div className="flex items-center gap-1.5">
+                <SocialIcon aria-label="Twitter">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.256 5.636L18.244 2.25z" />
+                  </svg>
+                </SocialIcon>
+                <SocialIcon aria-label="LinkedIn">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                  </svg>
+                </SocialIcon>
+                <SocialIcon aria-label="YouTube">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                  </svg>
+                </SocialIcon>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
 
-function TabBtn({
-  label, count, active, onClick,
-}: {
-  label: string
-  count?: number
-  active: boolean
-  onClick: () => void
+/* ─── Desktop tab button ─────────────────────────────────────────── */
+function TabBtn({ label, count, active, onClick }: {
+  label: string; count?: number; active: boolean; onClick: () => void
 }) {
   return (
     <button
@@ -163,15 +252,37 @@ function TabBtn({
         </span>
       )}
       {active && (
-        <span
-          className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-          style={{ backgroundColor: '#e31837' }}
-        />
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: '#e31837' }} />
       )}
     </button>
   )
 }
 
+/* ─── Mobile tab button ──────────────────────────────────────────── */
+function MobileTabBtn({ label, count, active, onClick }: {
+  label: string; count?: number; active: boolean; onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-between w-full px-2 py-3 text-sm font-semibold transition-colors focus:outline-none"
+      style={{
+        color: active ? '#ffffff' : 'rgba(255,255,255,0.55)',
+        borderBottom: '1px solid #1a1a1a',
+      }}
+    >
+      <span className="flex items-center gap-2">
+        {active && <span className="w-1 h-4 rounded-full shrink-0" style={{ backgroundColor: '#e31837' }} />}
+        {label}
+      </span>
+      {typeof count === 'number' && (
+        <span className="text-xs tabular-nums" style={{ color: 'rgba(255,255,255,0.3)' }}>{count}</span>
+      )}
+    </button>
+  )
+}
+
+/* ─── Social icon button ─────────────────────────────────────────── */
 function SocialIcon({ children, 'aria-label': label }: { children: React.ReactNode; 'aria-label': string }) {
   return (
     <button

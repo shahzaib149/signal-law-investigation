@@ -9,15 +9,11 @@ export default function StatusBoard({ items }: StatusBoardProps) {
   if (items.length === 0) return null
 
   return (
-    <section className="mt-12">
+    <section className="mt-10 sm:mt-12">
       {/* Section heading */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-0.5 h-5 rounded-full"
-            style={{ backgroundColor: '#e31837' }}
-            aria-hidden="true"
-          />
+          <div className="w-0.5 h-5 rounded-full shrink-0" style={{ backgroundColor: '#e31837' }} aria-hidden="true" />
           <h2 className="text-xs font-bold text-gray-800 uppercase tracking-[0.18em]">
             In Progress &amp; Completed
           </h2>
@@ -31,7 +27,6 @@ export default function StatusBoard({ items }: StatusBoardProps) {
         </span>
       </div>
 
-      {/* Divider */}
       <div className="h-px mb-4 bg-gray-100" />
 
       {/* Rows */}
@@ -39,25 +34,29 @@ export default function StatusBoard({ items }: StatusBoardProps) {
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between rounded-xl px-4 py-3 bg-gray-50 transition-colors hover:bg-gray-100"
+            className="rounded-xl px-4 py-3 bg-gray-50 transition-colors hover:bg-gray-100"
             style={{ border: '1px solid #f3f4f6' }}
           >
-            {/* Left */}
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="min-w-0">
-                <p className="text-gray-900 text-sm font-semibold truncate">
-                  {item.company_name}
-                </p>
-                <p className="text-gray-400 text-xs mt-0.5 truncate">
-                  {item.investigation_category}
-                </p>
+            {/* Top row: name + status badge */}
+            <div className="flex items-start justify-between gap-3 min-w-0">
+              <div className="min-w-0 flex-1">
+                <p className="text-gray-900 text-sm font-semibold truncate">{item.company_name}</p>
+                <p className="text-gray-400 text-xs mt-0.5 truncate">{item.investigation_category}</p>
               </div>
-              <StatusBadge status={item.investigation_status} variant="status" />
+              <div className="shrink-0 flex items-center gap-3">
+                <StatusBadge status={item.investigation_status} variant="status" />
+                {/* Date — visible on sm+ */}
+                {item.submitted_at && (
+                  <span className="hidden sm:inline text-gray-300 text-xs tabular-nums shrink-0">
+                    {new Date(item.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Right */}
-            <div className="flex items-center gap-5 shrink-0">
-              {item.wordpress_url && (
+            {/* Bottom row on mobile: view link + date */}
+            {item.wordpress_url && (
+              <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid #f3f4f6' }}>
                 <a
                   href={item.wordpress_url}
                   target="_blank"
@@ -69,17 +68,14 @@ export default function StatusBoard({ items }: StatusBoardProps) {
                 >
                   View Draft →
                 </a>
-              )}
-
-              {item.submitted_at && (
-                <span className="text-gray-300 text-xs hidden sm:inline tabular-nums">
-                  {new Date(item.submitted_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
-              )}
-            </div>
+                {/* Date on mobile only */}
+                {item.submitted_at && (
+                  <span className="sm:hidden text-gray-300 text-xs tabular-nums">
+                    {new Date(item.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -103,27 +103,29 @@ export default function InvestigationsView() {
         <p className="text-xs text-gray-400 mt-0.5">Generated research profiles · review and publish</p>
       </div>
 
-      {/* Filter pills */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {FILTERS.map((f) => {
-          const isActive = filter === f
-          return (
-            <button key={f} onClick={() => setFilter(f)}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
-              style={isActive
-                ? { backgroundColor: '#e31837', color: '#fff', border: '1px solid #e31837' }
-                : { backgroundColor: '#fff', color: '#374151', border: '1px solid #e5e7eb' }
-              }>
-              {f}
-              <span className="ml-1.5 tabular-nums opacity-60">{counts[f]}</span>
-            </button>
-          )
-        })}
-        <button onClick={() => { setLoading(true); fetchRecords() }} disabled={loading}
-          className="ml-auto px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none disabled:opacity-50"
-          style={{ backgroundColor: '#fff', color: '#374151', border: '1px solid #e5e7eb' }}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+      {/* Filter pills — horizontal scroll on mobile */}
+      <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
+        <div className="flex gap-2 px-4 sm:px-0 pb-1 min-w-max sm:min-w-0 sm:flex-wrap sm:items-center">
+          {FILTERS.map((f) => {
+            const isActive = filter === f
+            return (
+              <button key={f} onClick={() => setFilter(f)}
+                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                style={isActive
+                  ? { backgroundColor: '#e31837', color: '#fff', border: '1px solid #e31837' }
+                  : { backgroundColor: '#fff', color: '#374151', border: '1px solid #e5e7eb' }
+                }>
+                {f}
+                <span className="ml-1.5 tabular-nums opacity-60">{counts[f]}</span>
+              </button>
+            )
+          })}
+          <button onClick={() => { setLoading(true); fetchRecords() }} disabled={loading}
+            className="shrink-0 sm:ml-auto px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none disabled:opacity-50"
+            style={{ backgroundColor: '#fff', color: '#374151', border: '1px solid #e5e7eb' }}>
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
