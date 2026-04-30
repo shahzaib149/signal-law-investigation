@@ -66,6 +66,7 @@ export interface WordPressPost {
   link: string                  // permalink (becomes canonical after publish)
   featured_media: number        // media ID; 0 if none
   featured_media_url: string | null
+  press_release_link: string | null   // ACF field: press_release_link (URL)
   meta: WordPressMeta
 }
 

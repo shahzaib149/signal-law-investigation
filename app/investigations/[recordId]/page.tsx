@@ -227,8 +227,12 @@ export default function InvestigationDetailPage({
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <StatusPill status={record.investigation_status} />
                   {lastUpdated && <SolidPill label={`Last Updated: ${lastUpdated}`} bold="Last Updated:" />}
-                  {record.wordpress_press_release_url && (
-                    <SolidPill label="Press Release" href={record.wordpress_press_release_url} external />
+                  {(post?.press_release_link || record.wordpress_press_release_url) && (
+                    <SolidPill
+                      label="Press Release"
+                      href={(post?.press_release_link || record.wordpress_press_release_url)!}
+                      external
+                    />
                   )}
                   {isPublished && (record.wordpress_url || post?.link) ? (
                     <a

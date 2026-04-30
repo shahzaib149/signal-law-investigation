@@ -14,10 +14,10 @@ function authHeader(): string {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`
 }
 
-/** GET /posts/{id} — includes drafts, embeds featured media */
+/** GET /posts/{id} — includes drafts, embeds featured media + ACF fields */
 export async function getPost(postId: number): Promise<WordPressPost | null> {
   const res = await fetch(
-    `${WP_BASE}/posts/${postId}?status=draft&context=edit&_embed`,
+    `${WP_BASE}/posts/${postId}?status=draft&context=edit&_embed&acf_format=standard`,
     { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
   )
   if (res.status === 404) return null
@@ -37,7 +37,7 @@ export async function getPost(postId: number): Promise<WordPressPost | null> {
 /** GET /posts?slug={slug} — fetch by permalink slug */
 export async function getPostBySlug(slug: string): Promise<WordPressPost | null> {
   const res = await fetch(
-    `${WP_BASE}/posts?slug=${encodeURIComponent(slug)}&context=edit&_embed`,
+    `${WP_BASE}/posts?slug=${encodeURIComponent(slug)}&context=edit&_embed&acf_format=standard`,
     { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
   )
   if (!res.ok) return null
@@ -202,6 +202,10 @@ async function enrichWithAcf(postId: number, post: WordPressPost): Promise<void>
     if (pick('executive_intelligence_summary')) post.meta.executive_intelligence_summary = pick('executive_intelligence_summary')
     if (pick('investigation_status'))           post.meta.investigation_status           = pick('investigation_status')
     if (pick('last_updated'))                   post.meta.last_updated                   = pick('last_updated')
+    // press_release_link: URL field — overwrite only if ACF returned a non-empty value
+    if (!post.press_release_link && pick('press_release_link')) {
+      post.press_release_link = pick('press_release_link')
+    }
 
     console.log(`[wordpress] After ACF: vigilant_risk_score="${post.meta.vigilant_risk_score}" escalation_momentum_score="${post.meta.escalation_momentum_score}"`)
   } catch (err) {
@@ -215,14 +219,23 @@ function mapPost(raw: WordPressPostRaw): WordPressPost {
   const embeddedMedia = raw._embedded?.['wp:featuredmedia']?.[0]
   const featured_media_url = embeddedMedia?.source_url ?? null
 
-  // Check both standard `meta` AND inline `acf` (some WP configs embed ACF here)
-  const meta  = raw.meta  ?? {}
-  const acf   = raw.acf   ?? {}
+  // Check both standard `meta` AND inline `acf`
+  // acf is populated once field groups have "Show in REST API" enabled in ACF, or
+  // after enabling acf_format=standard and REST exposure per field group.
+  const meta = raw.meta ?? {}
+  const acf  = Array.isArray(raw.acf) ? {} : (raw.acf ?? {})  // WP returns [] when no ACF fields exposed
 
-  const get = (key: string) => {
+  const get = (key: string): string => {
     const v = meta[key] ?? acf[key]
     return v !== undefined && v !== null && v !== false ? String(v).trim() : ''
   }
+
+  // press_release_link: URL ACF field — check acf first (standard REST), then meta (register_post_meta path)
+  const pressRaw = acf['press_release_link'] ?? meta['press_release_link']
+  const press_release_link =
+    pressRaw && String(pressRaw).trim().length > 0 ? String(pressRaw).trim() : null
+
+  console.log(`[wordpress] mapPost(${raw.id}) press_release_link="${press_release_link ?? 'null'}"`)
 
   return {
     id: raw.id,
@@ -233,6 +246,7 @@ function mapPost(raw: WordPressPostRaw): WordPressPost {
     link: raw.link,
     featured_media: raw.featured_media,
     featured_media_url,
+    press_release_link,
     meta: {
       vigilant_risk_score:            get('vigilant_risk_score'),
       escalation_momentum_score:      get('escalation_momentum_score'),
