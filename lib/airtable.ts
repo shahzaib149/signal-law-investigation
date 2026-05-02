@@ -24,6 +24,7 @@ function mapToInvestigation(r: any): Investigation {
     suggested_date:              r.fields['Suggested Date']                ?? '',
     wordpress_url:               r.fields['WordPress Research Profile URL'] ?? r.fields['WordPress URL'] ?? '',
     wordpress_press_release_url: r.fields['WordPress Press Release URL']   ?? '',
+    explanatory_video:           r.fields['Explanatory Video']             ?? '',
   }
 }
 

@@ -68,6 +68,7 @@ export default function InvestigationDetailPage({
   const [publishing, setPublishing]         = useState(false)
   const [publishError, setPublishError]     = useState<string | null>(null)
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
+  const [videoOpen, setVideoOpen]           = useState(false)
 
   /* ─── Fetch ──────────────────────────────────────────────────── */
   const loadAll = useCallback(async () => {
@@ -232,6 +233,12 @@ export default function InvestigationDetailPage({
                       label="Press Release"
                       href={(post?.press_release_link || record.wordpress_press_release_url)!}
                       external
+                    />
+                  )}
+                  {record.explanatory_video && (
+                    <SolidPill
+                      label="Explanatory Video"
+                      onClick={() => setVideoOpen(true)}
                     />
                   )}
                   {isPublished && (record.wordpress_url || post?.link) ? (
@@ -503,6 +510,11 @@ export default function InvestigationDetailPage({
         </>
       )}
 
+      {/* Video modal */}
+      {videoOpen && record?.explanatory_video && (
+        <VideoModal url={record.explanatory_video} onClose={() => setVideoOpen(false)} />
+      )}
+
       {/* Publish confirm modal */}
       {showConfirm && post && record && (
         <ConfirmPublishDialog
@@ -535,8 +547,8 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
-function SolidPill({ label, bold, href, external }: {
-  label: string; bold?: string; href?: string; external?: boolean
+function SolidPill({ label, bold, href, external, onClick }: {
+  label: string; bold?: string; href?: string; external?: boolean; onClick?: () => void
 }) {
   const inner = bold ? (
     <><strong>{bold}</strong>&nbsp;{label.slice(bold.length).trim()}</>
@@ -546,6 +558,7 @@ function SolidPill({ label, bold, href, external }: {
     padding: '8px 18px', borderRadius: '999px', fontSize: '13px',
     backgroundColor: 'white', border: '1.5px solid #d1d5db',
     color: '#111827', whiteSpace: 'nowrap', fontWeight: 500, textDecoration: 'none',
+    cursor: onClick ? 'pointer' : 'default',
   }
   if (href) {
     return (
@@ -561,7 +574,60 @@ function SolidPill({ label, bold, href, external }: {
       </a>
     )
   }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} style={style}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+          fill="currentColor" stroke="none" style={{ marginRight: '2px', flexShrink: 0 }}>
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+        {inner}
+      </button>
+    )
+  }
   return <span style={style}>{inner}</span>
+}
+
+/* ─── Video modal ────────────────────────────────────────────── */
+
+function VideoModal({ url, onClose }: { url: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      style={{ backgroundColor: 'rgba(0,0,0,0.90)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full"
+        style={{ maxWidth: '900px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute flex items-center gap-1.5 text-white text-sm font-medium transition-opacity hover:opacity-100"
+          style={{ top: '-36px', right: 0, opacity: 0.75, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Close
+        </button>
+
+        {/* Video player */}
+        <video
+          src={url}
+          controls
+          autoPlay
+          playsInline
+          className="w-full rounded-lg"
+          style={{ maxHeight: '80vh', backgroundColor: '#000', display: 'block' }}
+        />
+      </div>
+    </div>
+  )
 }
 
 /* ─── Score icons ────────────────────────────────────────────── */

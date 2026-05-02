@@ -14,6 +14,7 @@ export interface Investigation {
   suggested_date: string
   wordpress_url: string
   wordpress_press_release_url: string
+  explanatory_video: string
   featured_media_url?: string | null   // populated client-side from WP batch fetch
 }
 
