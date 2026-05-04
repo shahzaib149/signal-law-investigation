@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Investigation, StatusItem } from '@/types/investigation'
 import DashboardHeader from '@/components/DashboardHeader'
 import TopicCard from '@/components/TopicCard'
-import StatusBoard from '@/components/StatusBoard'
 import LaunchModal from '@/components/LaunchModal'
 import InvestigationsView from '@/components/InvestigationsView'
 
@@ -26,6 +25,7 @@ export default function Dashboard() {
   }, [])
   const [topics, setTopics]               = useState<Investigation[]>([])
   const [statusItems, setStatusItems]     = useState<StatusItem[]>([])
+  const [launchingIds, setLaunchingIds]   = useState<Set<string>>(new Set())
   const [filter, setFilter]               = useState<string>('All')
   const [loading, setLoading]             = useState(true)
   const [refreshing, setRefreshing]       = useState(false)
@@ -70,6 +70,17 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [fetchTopics, fetchStatus])
 
+  /* Auto-redirect when a launched record reaches Active Research */
+  useEffect(() => {
+    if (launchingIds.size === 0) return
+    for (const item of statusItems) {
+      if (launchingIds.has(item.id) && item.investigation_status === 'Active Research') {
+        window.location.href = `/investigations/${item.id}`
+        return
+      }
+    }
+  }, [statusItems, launchingIds])
+
   /* ─── Launch ─────────────────────────────────────────────────── */
   const handleLaunch = useCallback((topic: Investigation) => {
     setSelectedTopic(topic)
@@ -85,13 +96,12 @@ export default function Dashboard() {
         body: JSON.stringify({ recordId: selectedTopic.id }),
       })
       if (!res.ok) throw new Error('Launch failed')
-      setTopics((prev) => prev.filter((t) => t.id !== selectedTopic.id))
+      setLaunchingIds((prev) => new Set(prev).add(selectedTopic.id))
       setSelectedTopic(null)
-      fetchStatus()
     } catch { /* keep modal open */ } finally {
       setLaunching(false)
     }
-  }, [selectedTopic, fetchStatus])
+  }, [selectedTopic])
 
   /* ─── Dynamic category filter pills ─────────────────────────── */
   const categories = useMemo(() => {
@@ -204,12 +214,15 @@ export default function Dashboard() {
             {loading ? <SkeletonGrid /> : filteredTopics.length === 0 ? <EmptyState /> : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredTopics.map((topic) => (
-                  <TopicCard key={topic.id} topic={topic} onLaunch={() => handleLaunch(topic)} />
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    onLaunch={() => handleLaunch(topic)}
+                    isLaunching={launchingIds.has(topic.id)}
+                  />
                 ))}
               </div>
             )}
-
-            <StatusBoard items={statusItems} />
           </>
         )}
 

@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, use } from 'react'
-import Link from 'next/link'
 import Image from 'next/image'
 import type { Investigation, WordPressPost } from '@/types/investigation'
 import { metaToScoreTiles } from '@/lib/scoring'
 import DashboardHeader from '@/components/DashboardHeader'
+import XprDistributionPanel from '@/components/XprDistributionPanel'
 
 /* ─── Utilities ──────────────────────────────────────────────── */
 
@@ -330,6 +330,18 @@ export default function InvestigationDetailPage({
                 </div>
               </div>
             </section>
+          )}
+
+          {/* ── XPR Distribution Panel ── */}
+          {record.wordpress_press_release_url && post?.id && (
+            <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6">
+              <XprDistributionPanel
+                postId={post.id}
+                title={post.title || record.company_name}
+                summary={post.meta.executive_intelligence_summary || record.brief_topic}
+                link={record.wordpress_url}
+              />
+            </div>
           )}
 
           {/* ── No post ── */}

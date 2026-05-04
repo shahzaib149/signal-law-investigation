@@ -4,9 +4,10 @@ import StatusBadge from './StatusBadge'
 interface TopicCardProps {
   topic: Investigation
   onLaunch: () => void
+  isLaunching?: boolean
 }
 
-export default function TopicCard({ topic, onLaunch }: TopicCardProps) {
+export default function TopicCard({ topic, onLaunch, isLaunching }: TopicCardProps) {
   return (
     <article
       className="topic-card flex flex-col gap-3 rounded-xl p-4 bg-white"
@@ -65,16 +66,26 @@ export default function TopicCard({ topic, onLaunch }: TopicCardProps) {
         </p>
       )}
 
-      {/* ── Launch button ── */}
-      <button
-        onClick={onLaunch}
-        className="mt-auto w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-        style={{ backgroundColor: '#e31837' }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b01228')}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e31837')}
-      >
-        Launch Investigation ▶
-      </button>
+      {/* ── Launch button / Generating indicator ── */}
+      {isLaunching ? (
+        <div
+          className="mt-auto w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 badge-generating"
+          style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca' }}
+        >
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#e31837' }} />
+          <span className="text-xs font-semibold" style={{ color: '#b91c1c' }}>Generating...</span>
+        </div>
+      ) : (
+        <button
+          onClick={onLaunch}
+          className="mt-auto w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+          style={{ backgroundColor: '#e31837' }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b01228')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#e31837')}
+        >
+          Launch Investigation ▶
+        </button>
+      )}
     </article>
   )
 }
