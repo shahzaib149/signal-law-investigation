@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState, useCallback, use } from 'react'
 import Image from 'next/image'
 import type { Investigation, WordPressPost } from '@/types/investigation'
 import { metaToScoreTiles } from '@/lib/scoring'
+import Link from 'next/link'
 import DashboardHeader from '@/components/DashboardHeader'
-import XprDistributionPanel from '@/components/XprDistributionPanel'
 
 /* ─── Utilities ──────────────────────────────────────────────── */
 
@@ -149,7 +149,7 @@ export default function InvestigationDetailPage({
 
   /* ─── Render ─────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f5f5f5' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f1f5f9' }}>
 
       {/* Admin nav */}
       <div className="sticky top-0 z-40">
@@ -174,7 +174,7 @@ export default function InvestigationDetailPage({
           {publishSuccess && (
             <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-3">
               <div className="rounded-lg px-4 py-3 text-sm flex items-center gap-3"
-                style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857' }}>
+                style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', color: '#059669' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 6 9 17l-5-5" />
@@ -228,12 +228,23 @@ export default function InvestigationDetailPage({
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <StatusPill status={record.investigation_status} />
                   {lastUpdated && <SolidPill label={`Last Updated: ${lastUpdated}`} bold="Last Updated:" />}
-                  {(post?.press_release_link || record.wordpress_press_release_url) && (
-                    <SolidPill
-                      label="Press Release"
-                      href={(post?.press_release_link || record.wordpress_press_release_url)!}
-                      external
-                    />
+                  {record.wordpress_press_release_url && (
+                    <Link
+                      href={`/investigations/${recordId}/press-release`}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '8px 18px', borderRadius: '999px', fontSize: '13px',
+                        backgroundColor: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)',
+                        color: '#f1f5f9', whiteSpace: 'nowrap', fontWeight: 500, textDecoration: 'none',
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                      Press Release
+                    </Link>
                   )}
                   {record.explanatory_video && (
                     <SolidPill
@@ -332,25 +343,13 @@ export default function InvestigationDetailPage({
             </section>
           )}
 
-          {/* ── XPR Distribution Panel ── */}
-          {record.wordpress_press_release_url && post?.id && (
-            <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6">
-              <XprDistributionPanel
-                postId={post.id}
-                title={post.title || record.company_name}
-                summary={post.meta.executive_intelligence_summary || record.brief_topic}
-                link={record.wordpress_url}
-              />
-            </div>
-          )}
-
           {/* ── No post ── */}
           {!post && error && (
             <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
-              <div className="rounded-xl p-8 text-center bg-white" style={{ border: '1px dashed #e5e7eb' }}>
-                <p className="text-gray-600 text-sm">{error}</p>
-                <p className="text-gray-400 text-xs mt-2">
-                  Status: <strong>{record.investigation_status}</strong>. Content will appear once generation is complete.
+              <div className="rounded-xl p-8 text-center" style={{ backgroundColor: 'white', border: '1px dashed #e2e8f0' }}>
+                <p className="text-sm" style={{ color: '#6b7280' }}>{error}</p>
+                <p className="text-xs mt-2" style={{ color: '#9ca3af' }}>
+                  Status: <strong style={{ color: '#374151' }}>{record.investigation_status}</strong>. Content will appear once generation is complete.
                 </p>
                 <button onClick={loadAll} className="mt-4 text-xs font-semibold underline underline-offset-2"
                   style={{ color: '#e31837' }}>
@@ -370,12 +369,12 @@ export default function InvestigationDetailPage({
                   {sections.map((section, idx) => (
                     <article
                       key={idx}
-                      className="bg-white rounded-lg overflow-hidden"
-                      style={{ border: '1px solid #e5e7eb' }}
+                      className="rounded-xl overflow-hidden"
+                      style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                     >
                       {section.title && (
-                        <div className="px-6 pt-5 pb-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <h2 className="text-sm font-bold text-gray-900 uppercase tracking-[0.15em]">
+                        <div className="px-6 pt-5 pb-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <h2 className="text-sm font-bold uppercase tracking-[0.15em]" style={{ color: '#111827' }}>
                             {section.title}
                           </h2>
                         </div>
@@ -388,8 +387,8 @@ export default function InvestigationDetailPage({
 
                   {press.trim() && (
                     <article
-                      className="bg-white rounded-lg overflow-hidden"
-                      style={{ border: '1px solid #e5e7eb', borderTop: '3px solid #e31837' }}
+                      className="rounded-xl overflow-hidden"
+                      style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderTop: '3px solid #e31837', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                     >
                       <div className="px-6 py-5">
                         <div className="signal-content" dangerouslySetInnerHTML={{ __html: press }} />
@@ -397,7 +396,7 @@ export default function InvestigationDetailPage({
                     </article>
                   )}
 
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-[11px]" style={{ color: '#9ca3af' }}>
                     {post.meta.last_updated && <>Last updated {post.meta.last_updated} · </>}
                     Draft ID <span className="font-mono">#{post.id}</span>
                   </p>
@@ -407,9 +406,9 @@ export default function InvestigationDetailPage({
                 <div className="lg:col-span-1 flex flex-col gap-6">
 
                   {/* Evidence and Source Links */}
-                  <div className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #e5e7eb' }}>
-                    <div className="px-6 pt-5 pb-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-[0.15em]">
+                  <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                    <div className="px-6 pt-5 pb-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.15em]" style={{ color: '#111827' }}>
                         Evidence and Source Links
                       </h3>
                     </div>
@@ -422,21 +421,23 @@ export default function InvestigationDetailPage({
                       ].map((src) => (
                         <div key={src.title} className="flex items-start gap-3">
                           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
-                            fill="none" stroke="#047857" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                            fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                             className="mt-0.5 shrink-0">
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
                           <div>
-                            <p className="text-sm font-bold text-gray-900">{src.title}</p>
-                            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{src.desc}</p>
+                            <p className="text-sm font-bold" style={{ color: '#111827' }}>{src.title}</p>
+                            <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#6b7280' }}>{src.desc}</p>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="px-6 pb-5" style={{ borderTop: '1px solid #f3f4f6', paddingTop: '16px' }}>
+                    <div className="px-6 pb-5" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                       <button
-                        className="w-full py-2 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-900 transition-colors"
-                        style={{ border: '1px solid #e5e7eb', borderRadius: '4px' }}
+                        className="w-full py-2 text-xs font-bold uppercase tracking-widest transition-colors"
+                        style={{ border: '1px solid #e5e7eb', borderRadius: '6px', color: '#6b7280' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#374151')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#6b7280')}
                       >
                         View All Sources
                       </button>
@@ -444,9 +445,9 @@ export default function InvestigationDetailPage({
                   </div>
 
                   {/* Contribute Information */}
-                  <div className="rounded-lg overflow-hidden" style={{ backgroundColor: '#374151' }}>
-                    <div className="px-6 pt-5 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                      <h3 className="text-sm font-bold text-white uppercase tracking-[0.15em]">
+                  <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                    <div className="px-6 pt-5 pb-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.15em]" style={{ color: '#111827' }}>
                         Contribute Information
                       </h3>
                     </div>
@@ -456,7 +457,7 @@ export default function InvestigationDetailPage({
                           label: 'Receive Research Updates',
                           icon: (
                             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
-                              fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z" />
                               <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
                             </svg>
@@ -466,7 +467,7 @@ export default function InvestigationDetailPage({
                           label: 'Join Monitoring List',
                           icon: (
                             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
-                              fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                               <circle cx="12" cy="7" r="4" />
                             </svg>
@@ -476,7 +477,7 @@ export default function InvestigationDetailPage({
                           label: 'Submit Information',
                           icon: (
                             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
-                              fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <circle cx="18" cy="5" r="3" />
                               <circle cx="6" cy="12" r="3" />
                               <circle cx="18" cy="19" r="3" />
@@ -488,27 +489,27 @@ export default function InvestigationDetailPage({
                       ].map((item) => (
                         <div
                           key={item.label}
-                          className="flex items-center justify-between py-2.5 px-3 rounded cursor-pointer transition-colors"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)')}
+                          className="flex items-center justify-between py-2.5 px-3 rounded-lg cursor-pointer transition-colors"
+                          style={{ backgroundColor: '#f8fafc' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                              style={{ backgroundColor: '#e5e7eb' }}>
                               {item.icon}
                             </div>
-                            <span className="text-sm font-semibold text-white">{item.label}</span>
+                            <span className="text-sm font-semibold" style={{ color: '#111827' }}>{item.label}</span>
                           </div>
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                            fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M7 17 17 7M7 7h10v10" />
                           </svg>
                         </div>
                       ))}
                     </div>
                     <div className="px-6 pb-6 pt-1">
-                      <p className="text-xs leading-relaxed" style={{ color: '#9ca3af' }}>
+                      <p className="text-xs leading-relaxed" style={{ color: '#6b7280' }}>
                         Individuals with information relating to {record.company_name} may submit
                         information through Signal Law Group&apos;s website.
                       </p>
@@ -546,13 +547,13 @@ export default function InvestigationDetailPage({
 
 function StatusPill({ status }: { status: string }) {
   const isPublished = status === 'Published'
-  const statusColor = isPublished ? '#047857' : '#e31837'
+  const statusColor = isPublished ? '#34d399' : '#f59e0b'
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: '4px',
       padding: '8px 18px', borderRadius: '999px', fontSize: '13px',
-      backgroundColor: 'white', border: '1.5px solid #d1d5db',
-      color: '#111827', whiteSpace: 'nowrap', fontWeight: 500,
+      backgroundColor: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)',
+      color: '#f1f5f9', whiteSpace: 'nowrap', fontWeight: 500,
     }}>
       <strong>Status:</strong>&nbsp;<span style={{ color: statusColor, fontWeight: 700 }}>{status}</span>
     </span>
@@ -568,8 +569,8 @@ function SolidPill({ label, bold, href, external, onClick }: {
   const style: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: '4px',
     padding: '8px 18px', borderRadius: '999px', fontSize: '13px',
-    backgroundColor: 'white', border: '1.5px solid #d1d5db',
-    color: '#111827', whiteSpace: 'nowrap', fontWeight: 500, textDecoration: 'none',
+    backgroundColor: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)',
+    color: '#f1f5f9', whiteSpace: 'nowrap', fontWeight: 500, textDecoration: 'none',
     cursor: onClick ? 'pointer' : 'default',
   }
   if (href) {
@@ -724,33 +725,33 @@ function ConfirmPublishDialog({
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl bg-white"
-        style={{ border: '1px solid #e5e7eb', boxShadow: '0 30px 70px rgba(0,0,0,0.25)' }}>
+      <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
+        style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', boxShadow: '0 30px 70px rgba(0,0,0,0.18)' }}>
         <div className="h-1 w-full" style={{ backgroundColor: '#e31837' }} />
         <div className="p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Publish this investigation?</h2>
-          <p className="text-xs text-gray-500 mb-5">
-            This will set the post to <strong>Publish</strong> on signallawgroup.com and mark the
-            Airtable record as <strong>Published</strong>.
+          <h2 className="text-lg font-bold mb-1" style={{ color: '#111827' }}>Publish this investigation?</h2>
+          <p className="text-xs mb-5" style={{ color: '#6b7280' }}>
+            This will set the post to <strong style={{ color: '#111827' }}>Publish</strong> on signallawgroup.com and mark the
+            Airtable record as <strong style={{ color: '#111827' }}>Published</strong>.
           </p>
-          <div className="rounded-xl p-4 mb-5 bg-gray-50" style={{ border: '1px solid #e5e7eb' }}>
-            <p className="text-gray-900 font-bold text-sm">{post.title || record.company_name}</p>
-            <p className="text-gray-500 text-xs mt-1">{record.investigation_category}</p>
+          <div className="rounded-xl p-4 mb-5" style={{ backgroundColor: '#f8fafc', border: '1px solid #e5e7eb' }}>
+            <p className="font-bold text-sm" style={{ color: '#111827' }}>{post.title || record.company_name}</p>
+            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>{record.investigation_category}</p>
           </div>
           {error && (
             <div className="mb-4 rounded-lg px-3 py-2 text-xs"
-              style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', color: '#dc2626' }}>
+              style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626' }}>
               {error}
             </div>
           )}
           <div className="flex gap-3">
             <button onClick={onCancel} disabled={publishing}
-              className="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all disabled:opacity-40 focus:outline-none"
-              style={{ border: '1px solid #e5e7eb' }}>
+              className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-40 focus:outline-none"
+              style={{ backgroundColor: '#f8fafc', border: '1px solid #e5e7eb', color: '#6b7280' }}>
               Cancel
             </button>
             <button onClick={onConfirm} disabled={publishing}
-              className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50 focus:outline-none"
               style={{ backgroundColor: publishing ? '#b01228' : '#e31837' }}>
               {publishing ? (
                 <span className="flex items-center justify-center gap-2">
@@ -774,12 +775,12 @@ function ConfirmPublishDialog({
 function DetailSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="h-8 w-1/3 bg-gray-200 rounded animate-pulse" />
-      <div className="h-72 w-full bg-gray-200 rounded-lg animate-pulse" />
-      <div className="h-32 w-full bg-gray-200 rounded-lg animate-pulse" />
+      <div className="h-8 w-1/3 rounded animate-pulse" style={{ backgroundColor: '#e2e8f0' }} />
+      <div className="h-72 w-full rounded-xl animate-pulse" style={{ backgroundColor: '#e2e8f0' }} />
+      <div className="h-32 w-full rounded-xl animate-pulse" style={{ backgroundColor: '#e2e8f0' }} />
       <div className="grid grid-cols-3 gap-5">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-48 bg-gray-200 rounded-lg animate-pulse" />
+          <div key={i} className="h-48 rounded-xl animate-pulse" style={{ backgroundColor: '#e2e8f0' }} />
         ))}
       </div>
     </div>
@@ -788,9 +789,9 @@ function DetailSkeleton() {
 
 function ErrorPanel({ title, message, onRetry }: { title: string; message: string; onRetry: () => void }) {
   return (
-    <div className="rounded-2xl p-8 bg-white text-center" style={{ border: '1px solid #fecaca' }}>
-      <h2 className="text-sm font-bold text-red-700 uppercase tracking-widest">{title}</h2>
-      <p className="text-sm text-gray-700 mt-2">{message}</p>
+    <div className="rounded-2xl p-8 text-center" style={{ backgroundColor: 'white', border: '1px solid #fca5a5' }}>
+      <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: '#dc2626' }}>{title}</h2>
+      <p className="text-sm mt-2" style={{ color: '#6b7280' }}>{message}</p>
       <button onClick={onRetry} className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white"
         style={{ backgroundColor: '#e31837' }}>
         Retry

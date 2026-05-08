@@ -129,3 +129,13 @@ html, body {
 .signal-content figure img { max-width: 100%; border-radius: 4px; }
 /* Separator */
 .signal-content hr { border: none; border-top: 1px solid #f3f4f6; margin: 20px 0; }
+
+/* ─── Dark variant for navy background ───────────────────────────── */
+.signal-content-dark { color: #94a3b8; }
+.signal-content-dark strong, .signal-content-dark b { color: #f1f5f9; }
+.signal-content-dark a   { color: #60a5fa; }
+.signal-content-dark h3  { color: #f1f5f9; }
+.signal-content-dark h4  { color: #f1f5f9; }
+.signal-content-dark h5  { color: #94a3b8; }
+.signal-content-dark .wp-block-group { border-color: rgba(255,255,255,0.08); }
+.signal-content-dark hr  { border-top-color: rgba(255,255,255,0.08); }

@@ -1,22 +1,41 @@
 import { NextResponse } from 'next/server'
 
-const XPR_API_KEY = 'bf224152-53b3-4e02-831f-05fdf75f4198'
-const XPR_DOMAIN  = 'www.signallawgroup.com'
-
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const postId = searchParams.get('postId')
-
-  if (!postId || isNaN(Number(postId))) {
-    return NextResponse.json({ error: 'valid postId is required' }, { status: 400 })
+  const XPR_API_KEY = process.env.XPR_API_KEY
+  if (!XPR_API_KEY) {
+    return NextResponse.json({ error: 'XPR_API_KEY is not configured' }, { status: 500 })
   }
 
-  const guid = encodeURIComponent(`/?p=${postId}`)
-  const url  = `https://xprmedia.binwus.com/api/distribution/story-status-check` +
-    `?apiKey=${XPR_API_KEY}&secure=yes&domain=${XPR_DOMAIN}&guid=${guid}`
+  const { searchParams } = new URL(req.url)
+  const link = searchParams.get('link')
+
+  if (!link) {
+    return NextResponse.json({ error: 'link parameter is required' }, { status: 400 })
+  }
+
+  let domain: string
+  let guid:   string
+  let secure: string
+
+  try {
+    const u = new URL(link)
+    domain = u.hostname
+    guid   = encodeURIComponent(u.pathname + (u.search || ''))
+    secure = u.protocol === 'https:' ? 'yes' : 'no'
+  } catch {
+    return NextResponse.json({ error: 'invalid link URL' }, { status: 400 })
+  }
+
+  const url = `https://xprmedia.binwus.com/api/distribution/story-status-check` +
+    `?apiKey=${XPR_API_KEY}&secure=${secure}&domain=${domain}&guid=${guid}`
 
   try {
     const res = await fetch(url, { cache: 'no-store' })
+
+    if (res.status === 404) {
+      return NextResponse.json({ total: 0, live: 0, pending: 0, publishers: [] })
+    }
+
     const text = await res.text()
     let data: unknown
     try { data = JSON.parse(text) } catch { data = { raw: text } }

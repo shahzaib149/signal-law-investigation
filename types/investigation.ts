@@ -15,7 +15,11 @@ export interface Investigation {
   wordpress_url: string
   wordpress_press_release_url: string
   explanatory_video: string
-  featured_media_url?: string | null   // populated client-side from WP batch fetch
+  featured_media_url?: string | null
+  wp_vrs?: string
+  wp_cis?: string
+  wp_thi?: string
+  wp_escalation?: string
 }
 
 /** Lighter shape used on the status board */

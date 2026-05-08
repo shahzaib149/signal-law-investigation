@@ -53,6 +53,52 @@ export async function getPostBySlug(slug: string): Promise<WordPressPost | null>
   return post
 }
 
+/**
+ * Try to fetch a post by slug across post types: posts → pages → press_release.
+ * Used for press-release URLs which may live under a different post type.
+ */
+export async function getPostBySlugAnyType(slug: string): Promise<WordPressPost | null> {
+  const qs = `slug=${encodeURIComponent(slug)}&context=edit&_embed&acf_format=standard`
+  const hdrs = { Authorization: authHeader(), Accept: 'application/json' }
+
+  for (const endpoint of [`${WP_BASE}/posts`, `${WP_BASE}/pages`, `${WP_BASE}/press_release`, `${WP_BASE}/press-release`]) {
+    try {
+      const res = await fetch(`${endpoint}?${qs}`, { headers: hdrs, cache: 'no-store' })
+      if (!res.ok) continue
+      const items: WordPressPostRaw[] = await res.json().catch(() => [])
+      if (Array.isArray(items) && items.length > 0) {
+        console.log(`[wordpress] getPostBySlugAnyType(${slug}) found at ${endpoint} id=${items[0].id}`)
+        return mapPost(items[0])
+      }
+    } catch { /* try next */ }
+  }
+
+  return null
+}
+
+/**
+ * Fetch a post by numeric ID, trying standard posts then pages.
+ * Needed for press releases stored as pages or custom types.
+ */
+export async function getPostByIdAnyType(postId: number): Promise<WordPressPost | null> {
+  // Step 1: try standard post
+  const byPost = await getPost(postId)
+  if (byPost) return byPost
+
+  // Step 2: try page
+  const pageRes = await fetch(
+    `${WP_BASE}/pages/${postId}?context=edit&_embed`,
+    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+  )
+  if (pageRes.ok) {
+    const raw: WordPressPostRaw = await pageRes.json()
+    console.log(`[wordpress] getPostByIdAnyType(${postId}) found as page`)
+    return mapPost(raw)
+  }
+
+  return null
+}
+
 /** POST /posts/{id} → publish */
 export async function publishPost(postId: number): Promise<WordPressPost> {
   const res = await fetch(
@@ -130,6 +176,76 @@ export async function getPostsFeaturedImagesBySlugs(slugs: string[]): Promise<Re
   const result: Record<string, string | null> = {}
   for (const p of posts) {
     result[p.slug] = p._embedded?.['wp:featuredmedia']?.[0]?.source_url ?? null
+  }
+  return result
+}
+
+export interface WPBatchData {
+  imageUrl:   string | null
+  vrs:        string
+  cis:        string
+  thi:        string
+  escalation: string
+}
+
+/** Batch-fetch image + key scores by post ID. Same no-_fields rule applies. */
+export async function getPostsBatchData(postIds: number[]): Promise<Record<number, WPBatchData>> {
+  if (!postIds.length) return {}
+  const ids = postIds.slice(0, 100).join(',')
+  const res = await fetch(
+    `${WP_BASE}/posts?include=${ids}&_embed=wp:featuredmedia&per_page=100&status=any&context=edit`,
+    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+  )
+  if (!res.ok) { console.log(`[wordpress] getPostsBatchData failed: ${res.status}`); return {} }
+  const posts: Array<{
+    id: number
+    meta?: Record<string, unknown>
+    acf?: Record<string, unknown> | unknown[]
+    _embedded?: { 'wp:featuredmedia'?: Array<{ source_url?: string }> }
+  }> = await res.json()
+  const result: Record<number, WPBatchData> = {}
+  for (const p of posts) {
+    const meta = (p.meta ?? {}) as Record<string, unknown>
+    const acf  = Array.isArray(p.acf) ? {} : ((p.acf ?? {}) as Record<string, unknown>)
+    const get  = (k: string): string => { const v = meta[k] ?? acf[k]; return v != null && v !== false ? String(v).trim() : '' }
+    result[p.id] = {
+      imageUrl:   p._embedded?.['wp:featuredmedia']?.[0]?.source_url ?? null,
+      vrs:        get('vigilant_risk_score'),
+      cis:        get('case_impact_score'),
+      thi:        get('threat_horizon_index'),
+      escalation: get('escalation_momentum_score'),
+    }
+  }
+  return result
+}
+
+/** Batch-fetch image + key scores by slug. */
+export async function getPostsBatchDataBySlugs(slugs: string[]): Promise<Record<string, WPBatchData>> {
+  if (!slugs.length) return {}
+  const slugParam = slugs.slice(0, 100).map((s) => `slug[]=${encodeURIComponent(s)}`).join('&')
+  const res = await fetch(
+    `${WP_BASE}/posts?${slugParam}&_embed=wp:featuredmedia&per_page=100&context=edit`,
+    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+  )
+  if (!res.ok) { console.log(`[wordpress] getPostsBatchDataBySlugs failed: ${res.status}`); return {} }
+  const posts: Array<{
+    id: number; slug: string
+    meta?: Record<string, unknown>
+    acf?: Record<string, unknown> | unknown[]
+    _embedded?: { 'wp:featuredmedia'?: Array<{ source_url?: string }> }
+  }> = await res.json()
+  const result: Record<string, WPBatchData> = {}
+  for (const p of posts) {
+    const meta = (p.meta ?? {}) as Record<string, unknown>
+    const acf  = Array.isArray(p.acf) ? {} : ((p.acf ?? {}) as Record<string, unknown>)
+    const get  = (k: string): string => { const v = meta[k] ?? acf[k]; return v != null && v !== false ? String(v).trim() : '' }
+    result[p.slug] = {
+      imageUrl:   p._embedded?.['wp:featuredmedia']?.[0]?.source_url ?? null,
+      vrs:        get('vigilant_risk_score'),
+      cis:        get('case_impact_score'),
+      thi:        get('threat_horizon_index'),
+      escalation: get('escalation_momentum_score'),
+    }
   }
   return result
 }

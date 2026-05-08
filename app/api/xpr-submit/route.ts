@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server'
 
-const XPR_BASE      = 'https://xprmedia.binwus.com/api/distribution/content-sources'
-const XPR_PUBLIC_ID = '01KJZ5Y6PCR98G7C136H58NX9M'
-const XPR_API_KEY   = 'bf224152-53b3-4e02-831f-05fdf75f4198'
-const XPR_PARAMS    = `publicId=${XPR_PUBLIC_ID}&apiKey=${XPR_API_KEY}`
+const XPR_BASE = 'https://xprmedia.binwus.com/api/distribution/content-sources'
 
 export async function POST(req: Request) {
+  const XPR_API_KEY   = process.env.XPR_API_KEY
+  const XPR_PUBLIC_ID = process.env.XPR_PUBLIC_ID
+
+  if (!XPR_API_KEY || !XPR_PUBLIC_ID) {
+    return NextResponse.json({ error: 'XPR credentials are not configured' }, { status: 500 })
+  }
+
+  const XPR_PARAMS = `publicId=${XPR_PUBLIC_ID}&apiKey=${XPR_API_KEY}`
+
   let body: { title?: string; summary?: string; link?: string; guid?: string }
   try {
     body = await req.json()
@@ -29,16 +35,15 @@ export async function POST(req: Request) {
     categories:  ['Legal', 'Press Releases', 'Business'],
   }
 
-  const headers = { 'Content-Type': 'application/json' }
+  const headers  = { 'Content-Type': 'application/json' }
   const itemBody = JSON.stringify({ items: [item] })
 
   // 1. Precheck
-  let precheckData: Record<string, unknown>
   try {
-    const precheckRes = await fetch(`${XPR_BASE}/precheck?${XPR_PARAMS}`, {
+    const precheckRes  = await fetch(`${XPR_BASE}/precheck?${XPR_PARAMS}`, {
       method: 'POST', headers, body: itemBody,
     })
-    precheckData = await precheckRes.json()
+    const precheckData: Record<string, unknown> = await precheckRes.json()
     if (!precheckData.success) {
       const msg = (precheckData.message ?? precheckData.error ?? 'Precheck failed') as string
       return NextResponse.json({ error: String(msg) }, { status: 400 })

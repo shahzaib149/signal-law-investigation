@@ -9,37 +9,61 @@ import InvestigationsView from '@/components/InvestigationsView'
 
 type Tab = 'topics' | 'investigations'
 
-export default function Dashboard() {
-  const [tab, setTab]                     = useState<Tab>('topics')
+const PAGE_BG   = '#0d1526'
+const SURFACE   = '#111c30'
+const BORDER    = 'rgba(255,255,255,0.08)'
+const T1        = '#f1f5f9'
+const T2        = '#94a3b8'
+const T3        = '#4b6a9b'
 
-  /* Sync tab with URL — handles both initial load and browser back/forward */
+export default function Dashboard() {
+  const [tab, setTab] = useState<Tab>('topics')
+
+  /* Sync tab with URL — reads on mount + popstate (back/forward) */
   useEffect(() => {
     function syncTab() {
       const params = new URLSearchParams(window.location.search)
-      const t = params.get('tab')
-      setTab(t === 'investigations' ? 'investigations' : 'topics')
+      setTab(params.get('tab') === 'investigations' ? 'investigations' : 'topics')
     }
     syncTab()
     window.addEventListener('popstate', syncTab)
     return () => window.removeEventListener('popstate', syncTab)
   }, [])
-  const [topics, setTopics]               = useState<Investigation[]>([])
-  const [statusItems, setStatusItems]     = useState<StatusItem[]>([])
-  const [launchingIds, setLaunchingIds]   = useState<Set<string>>(new Set())
-  const [filter, setFilter]               = useState<string>('All')
-  const [loading, setLoading]             = useState(true)
-  const [refreshing, setRefreshing]       = useState(false)
-  const [selectedTopic, setSelectedTopic] = useState<Investigation | null>(null)
-  const [launching, setLaunching]         = useState(false)
-  const [error, setError]                 = useState<string | null>(null)
 
-  /* ─── Fetching ───────────────────────────────────────────────── */
+  /* Update URL when tab changes so reload stays on the same tab */
+  const handleTabChange = useCallback((newTab: Tab) => {
+    setTab(newTab)
+    const url = new URL(window.location.href)
+    if (newTab === 'topics') {
+      url.searchParams.delete('tab')
+    } else {
+      url.searchParams.set('tab', newTab)
+    }
+    window.history.pushState({}, '', url.toString())
+  }, [])
+
+  /* Keep InvestigationsView mounted once visited — prevents skeleton reload on tab switch */
+  const [invMounted, setInvMounted] = useState(false)
+  useEffect(() => {
+    if (tab === 'investigations') setInvMounted(true)
+  }, [tab])
+
+  const [topics,       setTopics]       = useState<Investigation[]>([])
+  const [statusItems,  setStatusItems]  = useState<StatusItem[]>([])
+  const [launchingIds, setLaunchingIds] = useState<Set<string>>(new Set())
+  const [catFilter,    setCatFilter]    = useState('All')
+  const [loading,      setLoading]      = useState(true)
+  const [refreshing,   setRefreshing]   = useState(false)
+  const [selectedTopic, setSelectedTopic] = useState<Investigation | null>(null)
+  const [launching,    setLaunching]    = useState(false)
+  const [error,        setError]        = useState<string | null>(null)
+
+  /* ─── Fetch ── */
   const fetchTopics = useCallback(async () => {
     try {
       const res = await fetch('/api/topics')
       if (!res.ok) throw new Error('Failed to load topics')
-      const data: Investigation[] = await res.json()
-      setTopics(data)
+      setTopics(await res.json())
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -52,8 +76,7 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/status')
       if (!res.ok) return
-      const data: StatusItem[] = await res.json()
-      setStatusItems(data)
+      setStatusItems(await res.json())
     } catch { /* silent */ }
   }, [])
 
@@ -70,7 +93,7 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [fetchTopics, fetchStatus])
 
-  /* Auto-redirect when a launched record reaches Active Research */
+  /* Auto-redirect when launched record reaches Active Research */
   useEffect(() => {
     if (launchingIds.size === 0) return
     for (const item of statusItems) {
@@ -81,10 +104,8 @@ export default function Dashboard() {
     }
   }, [statusItems, launchingIds])
 
-  /* ─── Launch ─────────────────────────────────────────────────── */
-  const handleLaunch = useCallback((topic: Investigation) => {
-    setSelectedTopic(topic)
-  }, [])
+  /* ─── Launch ── */
+  const handleLaunch = useCallback((topic: Investigation) => setSelectedTopic(topic), [])
 
   const confirmLaunch = useCallback(async () => {
     if (!selectedTopic) return
@@ -103,93 +124,120 @@ export default function Dashboard() {
     }
   }, [selectedTopic])
 
-  /* ─── Dynamic category filter pills ─────────────────────────── */
+  /* ─── Derived ── */
   const categories = useMemo(() => {
     const seen = new Set<string>()
     topics.forEach((t) => { if (t.investigation_category) seen.add(t.investigation_category) })
     return ['All', ...Array.from(seen).sort()]
   }, [topics])
 
+  const catCounts = useMemo(() => {
+    const m: Record<string, number> = { All: topics.length }
+    topics.forEach((t) => { m[t.investigation_category] = (m[t.investigation_category] ?? 0) + 1 })
+    return m
+  }, [topics])
+
   const filteredTopics = useMemo(
-    () => filter === 'All' ? topics : topics.filter((t) => t.investigation_category === filter),
-    [topics, filter]
+    () => catFilter === 'All' ? topics : topics.filter((t) => t.investigation_category === catFilter),
+    [topics, catFilter]
   )
 
-  /* ─── Sub-components ─────────────────────────────────────────── */
+  /* ─── Skeleton / Empty ── */
   const SkeletonGrid = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="h-72 rounded-xl animate-pulse bg-gray-100"
-          style={{ border: '1px solid #f3f4f6' }} />
+        <div key={i} className="h-72 rounded-xl animate-pulse" style={{ backgroundColor: SURFACE }} />
       ))}
     </div>
   )
 
   const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center py-24 rounded-xl bg-gray-50"
-      style={{ border: '1px dashed #d1d5db' }}>
-      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-white shadow-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-          viewBox="0 0 24 24" fill="none" stroke="#e31837"
-          strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <div className="flex flex-col items-center justify-center py-24 rounded-xl"
+      style={{ border: `1px dashed ${BORDER}` }}>
+      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
+        style={{ backgroundColor: SURFACE }}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+          fill="none" stroke="#e31837" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
       </div>
-      <p className="text-gray-800 font-semibold text-sm">No topics found</p>
-      <p className="text-gray-400 text-xs mt-1">
-        {filter !== 'All' ? `No "${filter}" topics in the queue` : 'The investigation queue is empty'}
+      <p style={{ color: T1, fontWeight: 600, fontSize: '14px' }}>No topics found</p>
+      <p style={{ color: T3, fontSize: '12px', marginTop: '4px' }}>
+        {catFilter !== 'All' ? `No "${catFilter}" topics in the queue` : 'The investigation queue is empty'}
       </p>
     </div>
   )
 
-  /* ─── Render ─────────────────────────────────────────────────── */
+  /* ─── Render ── */
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f8f9fa' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: PAGE_BG }}>
 
-      {/* Sticky header — tabs live inside the header */}
       <div className="sticky top-0 z-40">
         <DashboardHeader
           onRefresh={handleRefresh}
           loading={refreshing}
           tab={tab}
-          onTabChange={setTab}
+          onTabChange={handleTabChange}
           topicCount={topics.length}
         />
       </div>
 
-      {/* Body */}
-      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <main className="flex-1">
 
-        {/* ── Tab: Today's Topics ── */}
+        {/* ── Today's Topics ── */}
         {tab === 'topics' && (
-          <>
-            <div className="mb-6">
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-[0.15em]">
-                Today&apos;s Investigation Topics
-              </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                AI-generated candidates · pending review
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 24px 64px' }}>
+
+            {/* Page header */}
+            <div style={{ marginBottom: '32px' }}>
+              <p style={{ color: '#f59e0b', fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                PENDING REVIEW
+              </p>
+              <h1 style={{ color: T1, fontSize: 'clamp(28px,4vw,40px)', fontWeight: 700, lineHeight: 1.1, marginBottom: '10px' }}>
+                Today&apos;s Topics
+              </h1>
+              <p style={{ color: T2, fontSize: '14px', maxWidth: '520px', lineHeight: 1.6 }}>
+                AI-generated investigation candidates · review each topic and launch to begin active research.
               </p>
             </div>
 
+            {/* Stats bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              {[
+                { label: 'PENDING TOPICS',   value: topics.length,          sub: 'In review queue' },
+                { label: 'CATEGORIES',        value: categories.length - 1,  sub: 'Risk types today' },
+                { label: 'GENERATING',        value: launchingIds.size,      sub: 'In progress now',  highlight: launchingIds.size > 0 },
+                { label: 'QUEUE STATUS',      value: topics.length > 0 ? 'Active' : 'Clear', sub: 'Refresh every 15s' },
+              ].map(({ label, value, sub, highlight }) => (
+                <div key={label} className="rounded-xl px-4 py-4" style={{
+                  backgroundColor: SURFACE,
+                  border: `1px solid ${highlight ? 'rgba(245,158,11,.4)' : BORDER}`,
+                }}>
+                  <p style={{ color: T3, fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</p>
+                  <p style={{ color: highlight ? '#f59e0b' : T1, fontSize: '26px', fontWeight: 700, lineHeight: 1 }}>{value}</p>
+                  <p style={{ color: T3, fontSize: '11px', marginTop: '4px' }}>{sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Category filter pills */}
             {categories.length > 1 && (
-              <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
-                <div className="flex gap-2 px-4 sm:px-0 pb-1 min-w-max sm:min-w-0 sm:flex-wrap">
+              <div className="overflow-x-auto mb-6" style={{ marginLeft: '-4px' }}>
+                <div className="flex gap-2 pb-1" style={{ minWidth: 'max-content' }}>
+                  <span style={{ color: T3, fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', alignSelf: 'center', paddingLeft: '4px', marginRight: '4px' }}>
+                    RISK TYPE
+                  </span>
                   {categories.map((cat) => {
-                    const isActive = filter === cat
-                    const count = cat === 'All' ? topics.length : topics.filter((t) => t.investigation_category === cat).length
+                    const active = catFilter === cat
                     return (
-                      <button key={cat} onClick={() => setFilter(cat)}
-                        className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
-                        style={isActive
-                          ? { backgroundColor: '#e31837', color: '#fff',    border: '1px solid #e31837' }
-                          : { backgroundColor: '#ffffff', color: '#374151', border: '1px solid #e5e7eb' }
+                      <button key={cat} onClick={() => setCatFilter(cat)}
+                        className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-all focus:outline-none"
+                        style={active
+                          ? { backgroundColor: '#f59e0b', color: '#000', border: '1px solid #f59e0b' }
+                          : { backgroundColor: 'transparent', color: T2, border: `1px solid ${BORDER}` }
                         }
-                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e31837' }}
-                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.borderColor = '#e5e7eb' }}
                       >
-                        {cat}
-                        <span className="ml-1.5 tabular-nums opacity-60">{count}</span>
+                        {cat} <span style={{ opacity: 0.65 }}>{catCounts[cat] ?? 0}</span>
                       </button>
                     )
                   })}
@@ -197,9 +245,10 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Error */}
             {error && (
-              <div className="mb-6 rounded-lg px-4 py-3 text-xs flex items-center gap-2"
-                style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', color: '#dc2626' }}>
+              <div className="mb-6 rounded-xl px-4 py-3 text-xs flex items-center gap-2"
+                style={{ backgroundColor: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#f87171' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"/>
@@ -207,10 +256,11 @@ export default function Dashboard() {
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 {error} —{' '}
-                <button onClick={handleRefresh} className="underline underline-offset-2">retry</button>
+                <button onClick={handleRefresh} className="underline">retry</button>
               </div>
             )}
 
+            {/* Cards grid */}
             {loading ? <SkeletonGrid /> : filteredTopics.length === 0 ? <EmptyState /> : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredTopics.map((topic) => (
@@ -223,11 +273,15 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-          </>
+          </div>
         )}
 
-        {/* ── Tab: Investigations ── */}
-        {tab === 'investigations' && <InvestigationsView />}
+        {/* ── Investigations ── mount once, hide with CSS to preserve data between tab switches */}
+        {invMounted && (
+          <div style={{ display: tab === 'investigations' ? 'block' : 'none' }}>
+            <InvestigationsView />
+          </div>
+        )}
       </main>
 
       {/* Launch modal */}
@@ -242,4 +296,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
