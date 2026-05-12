@@ -30,7 +30,9 @@ export async function GET(req: Request) {
     `?apiKey=${XPR_API_KEY}&secure=${secure}&domain=${domain}&guid=${guid}`
 
   try {
-    const res = await fetch(url, { cache: 'no-store' })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10000)
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal }).finally(() => clearTimeout(timer))
 
     if (res.status === 404) {
       return NextResponse.json({ total: 0, live: 0, pending: 0, publishers: [] })
@@ -47,7 +49,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json(data)
   } catch (err) {
+    const isTimeout = err instanceof Error && err.name === 'AbortError'
     console.error('[xpr-status] fetch error:', err)
+    if (isTimeout) return NextResponse.json({ total: 0, live: 0, pending: 0, publishers: [], timedOut: true })
     return NextResponse.json({ error: 'Failed to reach XPR API' }, { status: 502 })
   }
 }

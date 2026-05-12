@@ -119,6 +119,7 @@ function stageInfo(status: string): { label: string; fill: number } {
   if (status === 'Published')       return { label: 'Placement Window', fill: 5 }
   if (status === 'Approved')        return { label: 'Placement Window', fill: 4 }
   if (status === 'Active Research') return { label: 'Development',      fill: 2 }
+  if (status === 'Intake')          return { label: 'Intake',           fill: 1 }
   return                                   { label: 'Research',         fill: 1 }
 }
 
@@ -409,7 +410,7 @@ export default function InvestigationsView() {
 
   /* ─── Stats ── */
   const stats = useMemo(() => {
-    const active    = records.filter(r => r.investigation_status === 'Active Research' || r.investigation_status === 'Approved').length
+    const active    = records.filter(r => r.investigation_status === 'Intake' || r.investigation_status === 'Active Research' || r.investigation_status === 'Approved').length
     const published = records.filter(r => r.investigation_status === 'Published').length
     const withVrs   = records.filter(r => !isNaN(extractNum(r.wp_vrs ?? '')))
     const avgVrs    = withVrs.length
@@ -429,7 +430,7 @@ export default function InvestigationsView() {
   /* ─── Stage filter ── */
   function matchStage(r: Investigation, f: StageFilter) {
     if (f === 'All') return true
-    if (f === 'Development')      return r.investigation_status === 'Active Research'
+    if (f === 'Development')      return r.investigation_status === 'Intake' || r.investigation_status === 'Active Research'
     if (f === 'Placement Window') return r.investigation_status === 'Approved'
     if (f === 'Placed')           return r.investigation_status === 'Published'
     return true
@@ -457,22 +458,32 @@ export default function InvestigationsView() {
   }, [records, catFilter, stageFilter, search, sort])
 
   /* ─── Section splits ── */
-  const placementWindow = filtered.filter(r => r.investigation_status === 'Published' || r.investigation_status === 'Approved')
+  const hasWpScore = (r: Investigation) => {
+    const n = extractNum(r.wp_vrs ?? '')
+    return !isNaN(n) && n > 0
+  }
+
+  const placementWindow = filtered.filter(r =>
+    (r.investigation_status === 'Published' || r.investigation_status === 'Approved') && hasWpScore(r)
+  )
 
   const activeResearch = filtered.filter(r =>
     r.investigation_status === 'Active Research' &&
     norm10(extractNum(r.wp_vrs ?? '')) >= WATCH_THRESHOLD
   )
 
-  const backgroundWatch = filtered.filter(r =>
-    r.investigation_status === 'Active Research' &&
-    (isNaN(extractNum(r.wp_vrs ?? '')) || norm10(extractNum(r.wp_vrs ?? '')) < WATCH_THRESHOLD)
-  )
+  const backgroundWatch = filtered.filter(r => {
+    const vrsN = norm10(extractNum(r.wp_vrs ?? ''))
+    const noScore = isNaN(vrsN) || vrsN < WATCH_THRESHOLD
+    const isEarlyStage = r.investigation_status === 'Intake' || r.investigation_status === 'Active Research'
+    const isPublishedNoScore = (r.investigation_status === 'Published' || r.investigation_status === 'Approved') && !hasWpScore(r)
+    return (isEarlyStage && noScore) || isPublishedNoScore
+  })
 
   /* ─── Stage counts ── */
   const stageCounts = {
     All:              records.length,
-    Development:      records.filter(r => r.investigation_status === 'Active Research').length,
+    Development:      records.filter(r => r.investigation_status === 'Intake' || r.investigation_status === 'Active Research').length,
     'Placement Window': records.filter(r => r.investigation_status === 'Approved').length,
     Placed:           records.filter(r => r.investigation_status === 'Published').length,
   }

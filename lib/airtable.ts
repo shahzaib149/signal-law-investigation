@@ -2,10 +2,15 @@ import type { Investigation, StatusItem } from '@/types/investigation'
 
 const BASE_URL = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`
 
+function safeJson(text: string): string | null {
+  try { return JSON.stringify(JSON.parse(text)) } catch { return null }
+}
+
 function authHeaders() {
   return {
-    Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
-    'Content-Type': 'application/json',
+    Authorization:    `Bearer ${process.env.AIRTABLE_API_KEY}`,
+    'Content-Type':   'application/json',
+    'Accept-Encoding': 'gzip, deflate', // exclude brotli — Node fetch can't decompress it
   }
 }
 
@@ -55,8 +60,9 @@ export async function fetchPendingTopics(): Promise<Investigation[]> {
   })
 
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(`Airtable fetchPendingTopics failed: ${JSON.stringify(err)}`)
+    const text = await res.text().catch(() => '')
+    const err  = safeJson(text)
+    throw new Error(`Airtable fetchPendingTopics failed (${res.status}): ${err ?? text.slice(0, 200)}`)
   }
 
   const data = await res.json()
@@ -78,8 +84,9 @@ export async function fetchStatusItems(): Promise<StatusItem[]> {
   })
 
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(`Airtable fetchStatusItems failed: ${JSON.stringify(err)}`)
+    const text = await res.text().catch(() => '')
+    const err  = safeJson(text)
+    throw new Error(`Airtable fetchStatusItems failed (${res.status}): ${err ?? text.slice(0, 200)}`)
   }
 
   const data = await res.json()
@@ -93,7 +100,7 @@ export async function fetchStatusItems(): Promise<StatusItem[]> {
  */
 export async function fetchCompletedInvestigations(): Promise<Investigation[]> {
   const params = new URLSearchParams({
-    filterByFormula: `OR({Investigation Status}='Active Research', {Investigation Status}='Approved', {Investigation Status}='Published')`,
+    filterByFormula: `OR({Investigation Status}='Intake', {Investigation Status}='Active Research', {Investigation Status}='Approved', {Investigation Status}='Published')`,
     'sort[0][field]':     'Last Modified',
     'sort[0][direction]': 'desc',
     maxRecords: '100',
@@ -105,8 +112,9 @@ export async function fetchCompletedInvestigations(): Promise<Investigation[]> {
   })
 
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(`Airtable fetchCompletedInvestigations failed: ${JSON.stringify(err)}`)
+    const text = await res.text().catch(() => '')
+    const err  = safeJson(text)
+    throw new Error(`Airtable fetchCompletedInvestigations failed (${res.status}): ${err ?? text.slice(0, 200)}`)
   }
 
   const data = await res.json()
@@ -142,6 +150,24 @@ export async function launchInvestigation(recordId: string): Promise<void> {
   if (!res.ok) {
     const err = await res.json()
     throw new Error(`Airtable launchInvestigation failed: ${JSON.stringify(err)}`)
+  }
+}
+
+/** Update only the WordPress Press Release URL field on a record. */
+export async function updatePressReleaseUrl(
+  recordId: string,
+  pressReleaseUrl: string
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/${recordId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      fields: { 'WordPress Press Release URL': pressReleaseUrl },
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Airtable updatePressReleaseUrl failed: ${JSON.stringify(err)}`)
   }
 }
 

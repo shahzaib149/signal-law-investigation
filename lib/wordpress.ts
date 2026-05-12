@@ -14,11 +14,20 @@ function authHeader(): string {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`
 }
 
+function wpHeaders(extra?: Record<string, string>) {
+  return {
+    Authorization:    authHeader(),
+    Accept:           'application/json',
+    'Accept-Encoding': 'gzip, deflate', // exclude brotli — Node fetch cannot decompress it
+    ...extra,
+  }
+}
+
 /** GET /posts/{id} — includes drafts, embeds featured media + ACF fields */
 export async function getPost(postId: number): Promise<WordPressPost | null> {
   const res = await fetch(
     `${WP_BASE}/posts/${postId}?status=draft&context=edit&_embed&acf_format=standard`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`getPost(${postId}) failed: ${res.status} ${await safeReadText(res)}`)
@@ -38,7 +47,7 @@ export async function getPost(postId: number): Promise<WordPressPost | null> {
 export async function getPostBySlug(slug: string): Promise<WordPressPost | null> {
   const res = await fetch(
     `${WP_BASE}/posts?slug=${encodeURIComponent(slug)}&context=edit&_embed&acf_format=standard`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (!res.ok) return null
   const posts: WordPressPostRaw[] = await res.json()
@@ -59,7 +68,7 @@ export async function getPostBySlug(slug: string): Promise<WordPressPost | null>
  */
 export async function getPostBySlugAnyType(slug: string): Promise<WordPressPost | null> {
   const qs = `slug=${encodeURIComponent(slug)}&context=edit&_embed&acf_format=standard`
-  const hdrs = { Authorization: authHeader(), Accept: 'application/json' }
+  const hdrs = wpHeaders()
 
   for (const endpoint of [`${WP_BASE}/posts`, `${WP_BASE}/pages`, `${WP_BASE}/press_release`, `${WP_BASE}/press-release`]) {
     try {
@@ -88,7 +97,7 @@ export async function getPostByIdAnyType(postId: number): Promise<WordPressPost 
   // Step 2: try page
   const pageRes = await fetch(
     `${WP_BASE}/pages/${postId}?context=edit&_embed`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (pageRes.ok) {
     const raw: WordPressPostRaw = await pageRes.json()
@@ -105,7 +114,7 @@ export async function publishPost(postId: number): Promise<WordPressPost> {
     `${WP_BASE}/posts/${postId}?context=edit&_embed=wp:featuredmedia`,
     {
       method: 'POST',
-      headers: { Authorization: authHeader(), 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: wpHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ status: 'publish' }),
       cache: 'no-store',
     }
@@ -119,7 +128,7 @@ export async function publishPost(postId: number): Promise<WordPressPost> {
 export async function getMedia(mediaId: number): Promise<string | null> {
   if (!mediaId || mediaId <= 0) return null
   const res = await fetch(`${WP_BASE}/media/${mediaId}`, {
-    headers: { Authorization: authHeader(), Accept: 'application/json' },
+    headers: wpHeaders(),
     cache: 'no-store',
   })
   if (!res.ok) return null
@@ -136,7 +145,7 @@ export async function getPostsFeaturedImages(postIds: number[]): Promise<Record<
   const ids = postIds.slice(0, 100).join(',')
   const res = await fetch(
     `${WP_BASE}/posts?include=${ids}&_embed=wp:featuredmedia&per_page=100&status=any&context=edit`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (!res.ok) {
     console.log(`[wordpress] getPostsFeaturedImages failed: ${res.status}`)
@@ -161,7 +170,7 @@ export async function getPostsFeaturedImagesBySlugs(slugs: string[]): Promise<Re
   const slugParam = slugs.slice(0, 100).map((s) => `slug[]=${encodeURIComponent(s)}`).join('&')
   const res = await fetch(
     `${WP_BASE}/posts?${slugParam}&_embed=wp:featuredmedia&per_page=100&context=edit`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (!res.ok) {
     console.log(`[wordpress] getPostsFeaturedImagesBySlugs failed: ${res.status}`)
@@ -194,7 +203,7 @@ export async function getPostsBatchData(postIds: number[]): Promise<Record<numbe
   const ids = postIds.slice(0, 100).join(',')
   const res = await fetch(
     `${WP_BASE}/posts?include=${ids}&_embed=wp:featuredmedia&per_page=100&status=any&context=edit`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (!res.ok) { console.log(`[wordpress] getPostsBatchData failed: ${res.status}`); return {} }
   const posts: Array<{
@@ -225,7 +234,7 @@ export async function getPostsBatchDataBySlugs(slugs: string[]): Promise<Record<
   const slugParam = slugs.slice(0, 100).map((s) => `slug[]=${encodeURIComponent(s)}`).join('&')
   const res = await fetch(
     `${WP_BASE}/posts?${slugParam}&_embed=wp:featuredmedia&per_page=100&context=edit`,
-    { headers: { Authorization: authHeader(), Accept: 'application/json' }, cache: 'no-store' }
+    { headers: wpHeaders(), cache: 'no-store' }
   )
   if (!res.ok) { console.log(`[wordpress] getPostsBatchDataBySlugs failed: ${res.status}`); return {} }
   const posts: Array<{
@@ -288,7 +297,7 @@ async function enrichWithAcf(postId: number, post: WordPressPost): Promise<void>
 
   try {
     const res = await fetch(`${WP_SITE}/wp-json/acf/v3/posts/${postId}`, {
-      headers: { Authorization: authHeader(), Accept: 'application/json' },
+      headers: wpHeaders(),
       cache: 'no-store',
     })
 

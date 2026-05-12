@@ -20,7 +20,11 @@ export async function POST(req: Request) {
   }
 
   const auth    = Buffer.from(`${WP_USER}:${WP_PASS}`).toString('base64')
-  const headers = { 'Content-Type': 'application/json', 'Authorization': `Basic ${auth}` }
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Basic ${auth}`,
+    'Accept-Encoding': 'gzip, deflate',
+  }
 
   // 1. Try ?p=N pattern
   let postId: number | null = null

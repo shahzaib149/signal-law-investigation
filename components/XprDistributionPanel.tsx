@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 /* ─── Validation cache (localStorage, 24-hour TTL) ───────────────── */
 
 function cacheKey(link: string) {
-  return `xpr_val_${link.replace(/[^a-z0-9]/gi, '_').slice(-80)}`
+  return `xpr_val_v2_${link.replace(/[^a-z0-9]/gi, '_').slice(-80)}`
 }
 
 function readCache(link: string): ValidationResult | null {
@@ -113,11 +113,14 @@ function fmtDate(iso: string | null | undefined): string {
 /* ─── Props ──────────────────────────────────────────────────────── */
 
 interface Props {
-  title:     string
-  summary:   string
-  content:   string
-  link:      string
-  imageUrl?: string
+  title:      string
+  summary:    string
+  content:    string
+  link:       string
+  imageUrl?:  string
+  recordId?:  string
+  isPdf?:     boolean
+  onLinkChange?: (newLink: string) => void
 }
 
 /* ─── Spinner ────────────────────────────────────────────────────── */
@@ -136,7 +139,7 @@ function Spinner({ label }: { label: string }) {
 
 /* ─── Component ──────────────────────────────────────────────────── */
 
-export default function XprDistributionPanel({ title, summary, content, link, imageUrl }: Props) {
+export default function XprDistributionPanel({ title, summary, content, link, imageUrl, recordId, isPdf, onLinkChange }: Props) {
   const [open,          setOpen]          = useState(true)
   const [phase,         setPhase]         = useState<Phase>('checking-status')
   const [status,        setStatus]        = useState<XprStatus | null>(null)
@@ -248,25 +251,33 @@ export default function XprDistributionPanel({ title, summary, content, link, im
     }
   }
 
-  /* ─── Replace PR ─── */
+  /* ─── Replace PR (PDF upload) ─── */
   const handleReplace = async () => {
     if (!replaceFile) return
     setReplacing(true)
     setReplaceError(null)
     try {
-      const fileContent = await replaceFile.text()
+      const fd = new FormData()
+      fd.append('file', replaceFile)
+      fd.append('recordId', recordId ?? '')
 
-      const res  = await fetch('/api/update-press-release', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ link, content: fileContent }),
-      })
+      const res  = await fetch('/api/upload-press-release-pdf', { method: 'POST', body: fd })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'WordPress update failed')
+      if (!res.ok) throw new Error(data.error ?? 'PDF upload failed')
+
+      const newLink: string = data.pdfUrl ?? propsRef.current.link
+      clearCache(propsRef.current.link)
+      clearCache(newLink)
+
+      // Notify parent of new URL so page can reload with correct link
+      if (onLinkChange) {
+        onLinkChange(newLink)
+      }
 
       setReplaceFile(null)
-      clearCache(propsRef.current.link)
-      await validate(fileContent, true)
+      // Re-validate with summary/title as content (PDF text not extractable)
+      const { title: t, summary: s } = propsRef.current
+      await validate(s || t || 'Press release content', true)
     } catch (err) {
       setReplaceError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -476,8 +487,10 @@ export default function XprDistributionPanel({ title, summary, content, link, im
 
                   <div className="px-5 py-4">
                     <p className="text-xs mb-3" style={{ color: '#6b7280' }}>
-                      Upload an improved press release (.html or .txt). It will replace the WordPress post and be
-                      re-validated automatically.
+                      Upload an improved press release <strong>(.pdf)</strong>.
+                      {isPdf
+                        ? ' It will be uploaded to WordPress and re-validated automatically.'
+                        : ' It will replace the existing file and be re-validated automatically.'}
                     </p>
 
                     {/* View current */}
@@ -522,11 +535,11 @@ export default function XprDistributionPanel({ title, summary, content, link, im
                               <line x1="12" y1="3" x2="12" y2="15" />
                             </svg>
                             <p className="text-sm font-semibold" style={{ color: '#374151' }}>Drop file or click to browse</p>
-                            <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>Accepts .html or .txt</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>Accepts .pdf only</p>
                           </div>
                         )}
                       </div>
-                      <input type="file" accept=".html,.htm,.txt" className="hidden"
+                      <input type="file" accept=".pdf,application/pdf" className="hidden"
                         disabled={replacing}
                         onChange={(e) => { setReplaceFile(e.target.files?.[0] ?? null); setReplaceError(null) }} />
                     </label>
@@ -547,7 +560,7 @@ export default function XprDistributionPanel({ title, summary, content, link, im
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                           </svg>
-                          Upload & Re-validate
+                          Upload PDF & Re-validate
                         </button>
                         <button type="button" onClick={() => { setReplaceFile(null); setReplaceError(null) }}
                           className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all"

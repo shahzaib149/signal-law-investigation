@@ -74,12 +74,28 @@ export async function POST(req: Request) {
     console.log('[get-press-release] finalUrl:', finalUrl, 'isPdf:', isPdf, 'contentType:', contentType)
 
     if (isPdf) {
-      // Derive a clean title from the original URL slug
-      const rawSlug = link.replace(/\/$/, '').split('/').pop() ?? ''
+      const rawSlug  = link.replace(/\/$/, '').split('/').pop() ?? ''
       const pdfTitle = rawSlug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
       console.log('[get-press-release] PDF detected, pdfUrl:', finalUrl)
+
+      // Extract full text from the PDF so XPR validation gets real content
+      let pdfText = ''
+      try {
+        const pdfBytes = await fetch(finalUrl, {
+          headers: { 'Accept-Encoding': 'gzip, deflate' },
+          cache: 'no-store',
+        }).then(r => r.arrayBuffer())
+        const { PDFParse } = await import('pdf-parse')
+        const parser = new PDFParse({ data: Buffer.from(pdfBytes), verbosity: 0 })
+        const result = await parser.getText()
+        pdfText = result.text.trim()
+        console.log('[get-press-release] PDF text extracted, length:', pdfText.length)
+      } catch (e) {
+        console.warn('[get-press-release] PDF text extraction failed:', e)
+      }
+
       return NextResponse.json({
-        id: 0, title: pdfTitle, content: '', status: 'publish', date: '',
+        id: 0, title: pdfTitle, content: pdfText, status: 'publish', date: '',
         link, pdfUrl: finalUrl, isPdf: true,
         featured_media: 0, featured_media_url: null, press_release_link: null,
         meta: {

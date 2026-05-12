@@ -25,6 +25,7 @@ export default function PressReleasePage({
   const [prPost, setPrPost]   = useState<PressReleasePost | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
+  const [prLink, setPrLink]   = useState<string | null>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -37,6 +38,7 @@ export default function PressReleasePage({
       }
       const rec: Investigation = await recRes.json()
       setRecord(rec)
+      setPrLink(rec.wordpress_press_release_url || null)
 
       if (!rec.wordpress_press_release_url) {
         setError('No press release URL is linked to this investigation.')
@@ -66,7 +68,13 @@ export default function PressReleasePage({
 
   useEffect(() => { loadAll() }, [loadAll])
 
-  const canShowXpr = !loading && !!record && !!prPost && !!record.wordpress_press_release_url
+  const canShowXpr = !loading && !!record && !!prPost && !!(prLink || record.wordpress_press_release_url)
+
+  const handleLinkChange = (newLink: string) => {
+    setPrLink(newLink)
+    // Reload the press release content with the new PDF URL
+    loadAll()
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f1f5f9' }}>
@@ -282,8 +290,11 @@ export default function PressReleasePage({
                     title={prPost!.title || record.company_name}
                     summary={prPost!.meta?.executive_intelligence_summary || record.brief_topic || ''}
                     content={prPost!.content || record.brief_topic || ''}
-                    link={record.wordpress_press_release_url}
+                    link={prLink || record.wordpress_press_release_url}
                     imageUrl={prPost!.featured_media_url ?? undefined}
+                    recordId={recordId}
+                    isPdf={prPost!.isPdf === true}
+                    onLinkChange={handleLinkChange}
                   />
                 ) : !loading && record && (
                   <div className="rounded-xl p-5 text-center"
