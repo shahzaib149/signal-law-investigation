@@ -207,13 +207,13 @@ export default function XprDistributionPanel({
 
   // Stable refs so callbacks don't cause cascade re-renders
   const propsRef = useRef({
-    title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory,
+    title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory, isPdf,
   })
   useEffect(() => {
     propsRef.current = {
-      title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory,
+      title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory, isPdf,
     }
-  }, [title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory])
+  }, [title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory, isPdf])
 
   /* ─── Validate ─── */
   const validate = useCallback(async (overrideContent?: string, force = false) => {
@@ -281,6 +281,20 @@ export default function XprDistributionPanel({
     const { link: l, slug: sl, storyGuid: g } = propsRef.current
     setPhase('checking-status')
     setStatusError(null)
+
+    /** Avoid precheck while HTML is still empty — ref updates as parent finishes loading. */
+    const waitForArticleBody = async () => {
+      if (propsRef.current.isPdf === true) return
+      const minChars = 280
+      const maxWaitMs = 5_000
+      const stepMs = 100
+      const deadline = Date.now() + maxWaitMs
+      while (Date.now() < deadline) {
+        if ((propsRef.current.content ?? '').trim().length >= minChars) return
+        await new Promise((r) => setTimeout(r, stepMs))
+      }
+    }
+
     try {
       const params = new URLSearchParams({ link: l })
       if (g) params.set('guid', g)
@@ -296,20 +310,22 @@ export default function XprDistributionPanel({
       if (s.totalWebsites > 0) {
         setPhase('distributed')
       } else {
+        await waitForArticleBody()
         await validate()
       }
     } catch (err) {
       setStatusError(err instanceof Error ? err.message : 'Status check failed')
+      await waitForArticleBody()
       await validate()
     }
   }, [validate]) // validate is now stable (no prop deps)
 
-  // Run once on mount — ref guard prevents StrictMode double-fire
-  const didInit = useRef(false)
+  // Defer first status fetch slightly so parent `content` is in propsRef before precheck.
   useEffect(() => {
-    if (didInit.current) return
-    didInit.current = true
-    checkStatus()
+    const t = window.setTimeout(() => {
+      void checkStatus()
+    }, 120)
+    return () => window.clearTimeout(t)
   }, [checkStatus])
 
   /* ─── Publish ─── */
@@ -443,7 +459,7 @@ export default function XprDistributionPanel({
           {phase === 'distributed' && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); didInit.current = false; checkStatus() }}
+              onClick={(e) => { e.stopPropagation(); void checkStatus() }}
               title="Refresh status"
               className="transition-opacity hover:opacity-100"
               style={{ opacity: 0.5, background: 'none', border: 'none', padding: '2px', cursor: 'pointer', color: '#94a3b8' }}
