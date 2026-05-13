@@ -5,28 +5,57 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 /** Set `NEXT_PUBLIC_XPR_CLIENT_DEBUG=1` in `.env.local` and rebuild: browser console logs + raw `xpr` on validate/publish responses. */
 const XPR_CLIENT_DEBUG = process.env.NEXT_PUBLIC_XPR_CLIENT_DEBUG === '1'
 
-/* ─── Validation cache (localStorage, 24-hour TTL) ───────────────── */
+/* ─── Validation cache (localStorage, 24-hour TTL) ─────────────────
+ * Only **passed** prechecks are cached. Failed scores (e.g. empty HTML on first paint)
+ * were being stored and reused for 24h — different origins (localhost vs Vercel) then
+ * looked like "75 local / 15 production" when production had a stale bad cache.
+ */
 
-function cacheKey(link: string) {
-  return `xpr_val_v2_${link.replace(/[^a-z0-9]/gi, '_').slice(-80)}`
+function cacheKey(link: string, contentFingerprint: string) {
+  const safe = `${link}|${contentFingerprint}`.replace(/[^a-z0-9|]/gi, '_').slice(-96)
+  return `xpr_val_v3_${safe}`
 }
 
-function readCache(link: string): ValidationResult | null {
+function contentFingerprint(content: string, title: string): string {
+  const c = content ?? ''
+  const t = title ?? ''
+  return `${c.length}:${t.length}:${c.slice(0, 64)}`
+}
+
+function readCache(link: string, contentFingerprintStr: string): ValidationResult | null {
   try {
-    const raw = localStorage.getItem(cacheKey(link))
+    const raw = localStorage.getItem(cacheKey(link, contentFingerprintStr))
     if (!raw) return null
     const { result, ts } = JSON.parse(raw) as { result: ValidationResult; ts: number }
-    if (Date.now() - ts > 24 * 60 * 60 * 1000) { localStorage.removeItem(cacheKey(link)); return null }
+    if (Date.now() - ts > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(cacheKey(link, contentFingerprintStr))
+      return null
+    }
+    if (!result.passed) {
+      localStorage.removeItem(cacheKey(link, contentFingerprintStr))
+      return null
+    }
     return result
   } catch { return null }
 }
 
-function writeCache(link: string, result: ValidationResult) {
-  try { localStorage.setItem(cacheKey(link), JSON.stringify({ result, ts: Date.now() })) } catch { /* ignore */ }
+function writeCache(link: string, contentFingerprintStr: string, result: ValidationResult) {
+  if (!result.passed) return
+  try {
+    localStorage.setItem(cacheKey(link, contentFingerprintStr), JSON.stringify({ result, ts: Date.now() }))
+  } catch { /* ignore */ }
 }
 
-function clearCache(link: string) {
-  try { localStorage.removeItem(cacheKey(link)) } catch { /* ignore */ }
+function clearCache(link: string, contentFingerprintStr: string) {
+  try { localStorage.removeItem(cacheKey(link, contentFingerprintStr)) } catch { /* ignore */ }
+}
+
+/** Remove legacy v2 keys for this link suffix (one-time cleanup on re-validate). */
+function clearLegacyV2Cache(link: string) {
+  try {
+    const legacy = `xpr_val_v2_${link.replace(/[^a-z0-9]/gi, '_').slice(-80)}`
+    localStorage.removeItem(legacy)
+  } catch { /* ignore */ }
 }
 
 /* ─── Types ──────────────────────────────────────────────────────── */
@@ -190,9 +219,11 @@ export default function XprDistributionPanel({
   const validate = useCallback(async (overrideContent?: string, force = false) => {
     const { title: t, summary: s, content: c, link: l, imageUrl: img } = propsRef.current
 
-    // Use cache unless we have new content or force flag
+    const fp = contentFingerprint(overrideContent ?? c, t)
+
+    // Use cache only for **passed** prechecks (see readCache / writeCache).
     if (!overrideContent && !force) {
-      const cached = readCache(l)
+      const cached = readCache(l, fp)
       if (cached) {
         setValidation(cached)
         setPhase('ready')
@@ -236,7 +267,7 @@ export default function XprDistributionPanel({
         summary:        String(data.summary ?? ''),
         failedFilters:  Array.isArray(data.failedFilters) ? data.failedFilters : [],
       }
-      writeCache(l, result)
+      writeCache(l, fp, result)
       setValidation(result)
     } catch (err) {
       setValidateError(err instanceof Error ? err.message : 'Validation failed')
@@ -340,8 +371,11 @@ export default function XprDistributionPanel({
       if (!res.ok) throw new Error(data.error ?? 'PDF upload failed')
 
       const newLink: string = data.pdfUrl ?? propsRef.current.link
-      clearCache(propsRef.current.link)
-      clearCache(newLink)
+      const fp = contentFingerprint(propsRef.current.content, propsRef.current.title)
+      clearCache(propsRef.current.link, fp)
+      clearCache(newLink, fp)
+      clearLegacyV2Cache(propsRef.current.link)
+      clearLegacyV2Cache(newLink)
 
       // Notify parent of new URL so page can reload with correct link
       if (onLinkChange) {
@@ -546,7 +580,12 @@ export default function XprDistributionPanel({
                     </p>
                     <button
                       type="button"
-                      onClick={() => { clearCache(propsRef.current.link); validate(undefined, true) }}
+                      onClick={() => {
+                        const { link: cl, content: cc, title: ct } = propsRef.current
+                        clearCache(cl, contentFingerprint(cc, ct))
+                        clearLegacyV2Cache(cl)
+                        validate(undefined, true)
+                      }}
                       className="text-[11px] font-semibold flex items-center gap-1 transition-opacity hover:opacity-80"
                       style={{ color: '#6b7280' }}
                     >
