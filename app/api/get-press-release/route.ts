@@ -74,7 +74,8 @@ export async function POST(req: Request) {
     console.log('[get-press-release] finalUrl:', finalUrl, 'isPdf:', isPdf, 'contentType:', contentType)
 
     if (isPdf) {
-      const rawSlug  = link.replace(/\/$/, '').split('/').pop() ?? ''
+      const rawSlug = link.replace(/\/$/, '').split('/').pop() ?? ''
+      const pdfSlug = rawSlug.replace(/\.pdf$/i, '')
       const pdfTitle = rawSlug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
       console.log('[get-press-release] PDF detected, pdfUrl:', finalUrl)
 
@@ -94,9 +95,25 @@ export async function POST(req: Request) {
         console.warn('[get-press-release] PDF text extraction failed:', e)
       }
 
+      let displayTitle = pdfTitle
+      const firstLine = pdfText
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .find((l) => l.length > 24)
+      if (firstLine) {
+        displayTitle = firstLine.length > 220 ? `${firstLine.slice(0, 217)}…` : firstLine
+      }
+
       return NextResponse.json({
-        id: 0, title: pdfTitle, content: pdfText, status: 'publish', date: '',
-        link, pdfUrl: finalUrl, isPdf: true,
+        id: 0,
+        title: displayTitle,
+        content: pdfText,
+        status: 'publish',
+        date: '',
+        link,
+        slug: pdfSlug || undefined,
+        pdfUrl: finalUrl,
+        isPdf: true,
         featured_media: 0, featured_media_url: null, press_release_link: null,
         meta: {
           vigilant_risk_score: '', escalation_momentum_score: '', litigation_readiness_index: '',
@@ -118,8 +135,20 @@ export async function POST(req: Request) {
     }
 
     const scraped: WordPressPost = {
-      id: 0, title, content, status: 'publish', date: date ?? '',
-      link, featured_media: 0,
+      id: 0,
+      title,
+      content,
+      status: 'publish',
+      date: date ?? '',
+      link,
+      slug: (() => {
+        try {
+          return new URL(link).pathname.replace(/\/$/, '').split('/').filter(Boolean).pop()
+        } catch {
+          return undefined
+        }
+      })(),
+      featured_media: 0,
       featured_media_url: imageUrl,
       press_release_link: null,
       meta: emptyMeta,

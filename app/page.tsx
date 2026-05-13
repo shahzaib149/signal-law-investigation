@@ -162,8 +162,10 @@ export default function Dashboard() {
         </svg>
       </div>
       <p style={{ color: T1, fontWeight: 600, fontSize: '14px' }}>No topics found</p>
-      <p style={{ color: T3, fontSize: '12px', marginTop: '4px' }}>
-        {catFilter !== 'All' ? `No "${catFilter}" topics in the queue` : 'The investigation queue is empty'}
+      <p style={{ color: T3, fontSize: '12px', marginTop: '4px', textAlign: 'center', maxWidth: '420px', lineHeight: 1.5 }}>
+        {catFilter !== 'All'
+          ? `No "${catFilter}" topics in the queue`
+          : 'No rows match Pending, Intake, or empty status with the current filter. Other statuses (Generating, Active Research, etc.) appear under Investigations.'}
       </p>
     </div>
   )

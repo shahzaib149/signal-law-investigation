@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState, useCallback, use } from 'react'
 import Image from 'next/image'
 import type { Investigation, WordPressPost } from '@/types/investigation'
 import { metaToScoreTiles } from '@/lib/scoring'
+import {
+  investigationStubFromWordPressPost,
+  parseWpSyntheticPostId,
+} from '@/lib/synthetic-investigation-from-wp'
 import Link from 'next/link'
 import DashboardHeader from '@/components/DashboardHeader'
 
@@ -75,6 +79,29 @@ export default function InvestigationDetailPage({
     setLoading(true)
     setError(null)
     try {
+      const wpPostId = parseWpSyntheticPostId(recordId)
+      if (wpPostId !== null) {
+        const postRes = await fetch('/api/get-investigation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: wpPostId }),
+        })
+        if (postRes.status === 404) {
+          setRecord(null)
+          setPost(null)
+          setError('Investigation content not available — WordPress post not found.')
+          return
+        }
+        if (!postRes.ok) {
+          const err = await postRes.json().catch(() => ({}))
+          throw new Error(err?.error ?? `WordPress fetch failed (${postRes.status})`)
+        }
+        const loadedPost: WordPressPost = await postRes.json()
+        setPost(loadedPost)
+        setRecord(investigationStubFromWordPressPost(loadedPost, recordId))
+        return
+      }
+
       const recRes = await fetch(`/api/airtable-record/${recordId}`, { cache: 'no-store' })
       if (!recRes.ok) {
         const err = await recRes.json().catch(() => ({}))

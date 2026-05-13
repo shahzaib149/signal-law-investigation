@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Investigation, WordPressPost } from '@/types/investigation'
+import {
+  investigationStubFromWordPressPost,
+  parseWpSyntheticPostId,
+} from '@/lib/synthetic-investigation-from-wp'
 import DashboardHeader from '@/components/DashboardHeader'
 import XprDistributionPanel from '@/components/XprDistributionPanel'
 
@@ -31,6 +35,44 @@ export default function PressReleasePage({
     setLoading(true)
     setError(null)
     try {
+      const wpPostId = parseWpSyntheticPostId(recordId)
+      if (wpPostId !== null) {
+        const postRes = await fetch('/api/get-investigation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: wpPostId }),
+        })
+        if (!postRes.ok) {
+          const err = await postRes.json().catch(() => ({}))
+          throw new Error((err as { error?: string })?.error ?? `WordPress fetch failed (${postRes.status})`)
+        }
+        const post: WordPressPost = await postRes.json()
+        setRecord(investigationStubFromWordPressPost(post, recordId))
+        const link = post.press_release_link?.trim() || ''
+        if (!link) {
+          setPrPost(null)
+          setError('No press release URL is linked to this WordPress post.')
+          return
+        }
+        setPrLink(link)
+
+        const prRes = await fetch('/api/get-press-release', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ link }),
+        })
+        if (prRes.status === 404) {
+          setError('Press release content not found.')
+          return
+        }
+        if (!prRes.ok) {
+          const err = await prRes.json().catch(() => ({}))
+          throw new Error((err as { error?: string })?.error ?? `Press release fetch failed (${prRes.status})`)
+        }
+        setPrPost(await prRes.json())
+        return
+      }
+
       const recRes = await fetch(`/api/airtable-record/${recordId}`, { cache: 'no-store' })
       if (!recRes.ok) {
         const err = await recRes.json().catch(() => ({}))
@@ -288,10 +330,21 @@ export default function PressReleasePage({
                 {canShowXpr ? (
                   <XprDistributionPanel
                     title={prPost!.title || record.company_name}
-                    summary={prPost!.meta?.executive_intelligence_summary || record.brief_topic || ''}
+                    summary={
+                      prPost!.meta?.executive_intelligence_summary ||
+                      (prPost!.isPdf && prPost!.content
+                        ? String(prPost.content).slice(0, 900)
+                        : '') ||
+                      record.brief_topic ||
+                      ''
+                    }
                     content={prPost!.content || record.brief_topic || ''}
                     link={prLink || record.wordpress_press_release_url}
                     imageUrl={prPost!.featured_media_url ?? undefined}
+                    slug={prPost!.slug}
+                    storyGuid={record.xpr_story_guid}
+                    publishedAt={prPost!.date?.trim() ? prPost.date : undefined}
+                    investigationCategory={record.investigation_category}
                     recordId={recordId}
                     isPdf={prPost!.isPdf === true}
                     onLinkChange={handleLinkChange}

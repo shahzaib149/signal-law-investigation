@@ -23,10 +23,10 @@ function wpHeaders(extra?: Record<string, string>) {
   }
 }
 
-/** GET /posts/{id} — includes drafts, embeds featured media + ACF fields */
+/** GET /posts/{id} — draft or published (authenticated); embeds featured media + ACF fields */
 export async function getPost(postId: number): Promise<WordPressPost | null> {
   const res = await fetch(
-    `${WP_BASE}/posts/${postId}?status=draft&context=edit&_embed&acf_format=standard`,
+    `${WP_BASE}/posts/${postId}?context=edit&_embed&acf_format=standard`,
     { headers: wpHeaders(), cache: 'no-store' }
   )
   if (res.status === 404) return null
@@ -266,6 +266,99 @@ export function parsePostIdFromUrl(url: string | null | undefined): number | nul
   return m ? Number(m[1]) : null
 }
 
+/** One WordPress post row for merging into /api/investigations (orphan drafts). */
+export interface WpInvestigationListRow {
+  id: number
+  status: string
+  modified: string
+  date: string
+  link: string
+  slug: string
+  titlePlain: string
+  imageUrl: string | null
+  vrs: string
+  cis: string
+  thi: string
+  escalation: string
+}
+
+function listPostHasInvestigationSignals(meta: Record<string, unknown>, acf: Record<string, unknown>): boolean {
+  const get = (k: string): string => {
+    const v = meta[k] ?? acf[k]
+    return v != null && v !== false ? String(v).trim() : ''
+  }
+  return (
+    get('vigilant_risk_score').length > 0 ||
+    get('case_impact_score').length > 0 ||
+    get('investigation_status').length > 0 ||
+    get('escalation_momentum_score').length > 0 ||
+    get('threat_horizon_index').length > 0
+  )
+}
+
+function mapWpRawToInvestigationListRow(raw: WordPressPostRaw): WpInvestigationListRow {
+  const meta = (raw.meta ?? {}) as Record<string, unknown>
+  const acf  = Array.isArray(raw.acf) ? {} : ((raw.acf ?? {}) as Record<string, unknown>)
+  const get  = (k: string): string => {
+    const v = meta[k] ?? acf[k]
+    return v != null && v !== false ? String(v).trim() : ''
+  }
+  const titleRendered = raw.title?.rendered ?? raw.title?.raw ?? ''
+  return {
+    id: raw.id,
+    status: raw.status,
+    modified: raw.modified ?? raw.date,
+    date: raw.date,
+    link: raw.link,
+    slug: typeof raw.slug === 'string' ? raw.slug : '',
+    titlePlain: titleRendered.replace(/<[^>]+>/g, '').trim(),
+    imageUrl: raw._embedded?.['wp:featuredmedia']?.[0]?.source_url ?? null,
+    vrs:        get('vigilant_risk_score'),
+    cis:        get('case_impact_score'),
+    thi:        get('threat_horizon_index'),
+    escalation: get('escalation_momentum_score'),
+  }
+}
+
+/**
+ * Draft + published posts that look like Vigilant investigations (score / status meta).
+ * Newest `modified` first. Used when Airtable rows were cleared but WordPress still has content.
+ */
+export async function listInvestigationPostsFromWordPress(
+  opts?: { maxPagesPerStatus?: number }
+): Promise<WpInvestigationListRow[]> {
+  const maxPages = Math.min(Math.max(opts?.maxPagesPerStatus ?? 4, 1), 15)
+  const byId = new Map<number, WpInvestigationListRow>()
+
+  for (const status of ['draft', 'publish'] as const) {
+    for (let page = 1; page <= maxPages; page++) {
+      const res = await fetch(
+        `${WP_BASE}/posts?per_page=100&page=${page}&orderby=modified&order=desc&status=${status}&context=edit&_embed=wp:featuredmedia&acf_format=standard`,
+        { headers: wpHeaders(), cache: 'no-store' }
+      )
+      if (!res.ok) {
+        console.log(`[wordpress] listInvestigationPostsFromWordPress status=${status} page=${page} → ${res.status}`)
+        break
+      }
+      const posts: WordPressPostRaw[] = await res.json()
+      if (!Array.isArray(posts) || posts.length === 0) break
+
+      for (const raw of posts) {
+        const meta = (raw.meta ?? {}) as Record<string, unknown>
+        const acf  = Array.isArray(raw.acf) ? {} : ((raw.acf ?? {}) as Record<string, unknown>)
+        if (!listPostHasInvestigationSignals(meta, acf)) continue
+        byId.set(raw.id, mapWpRawToInvestigationListRow(raw))
+      }
+
+      if (posts.length < 100) break
+    }
+  }
+
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.modified || b.date).getTime() - new Date(a.modified || a.date).getTime()
+  )
+}
+
 /* ─── ACF fallback ──────────────────────────────────────────────────── */
 
 /** Score-specific meta keys — used to decide whether ACF fallback is needed. */
@@ -369,6 +462,7 @@ function mapPost(raw: WordPressPostRaw): WordPressPost {
     status: raw.status,
     date: raw.date,
     link: raw.link,
+    slug: typeof raw.slug === 'string' && raw.slug.length > 0 ? raw.slug : undefined,
     featured_media: raw.featured_media,
     featured_media_url,
     press_release_link,

@@ -8,7 +8,8 @@ import { markRecordPublished } from '@/lib/airtable'
  *
  * Flow:
  *   1. Set WordPress post status → publish (returns live permalink)
- *   2. Patch Airtable: status → Published, URL → live permalink
+ *   2. Optionally patch Airtable: status → Published, URL → live permalink (skipped when
+ *      `airtableRecordId` is a WordPress-only id: `wp-{postId}`).
  *
  * If step 2 fails, step 1 is NOT rolled back — we return success=true with
  * the permalink but include a warning. This keeps the WP side authoritative.
@@ -30,8 +31,10 @@ export async function POST(req: Request) {
   }
 
   if (!airtableRecordId || typeof airtableRecordId !== 'string') {
-    return NextResponse.json({ error: 'airtableRecordId is required' }, { status: 400 })
+    return NextResponse.json({ error: 'airtableRecordId (string) is required' }, { status: 400 })
   }
+
+  const skipAirtable = airtableRecordId.startsWith('wp-')
 
   // 1. Publish in WordPress
   let permalink: string
@@ -47,13 +50,15 @@ export async function POST(req: Request) {
     )
   }
 
-  // 2. Patch Airtable (non-fatal — WP is the source of truth for publish state)
+  // 2. Patch Airtable (skip for WordPress-only dashboard ids `wp-{postId}`)
   let airtableWarning: string | undefined
-  try {
-    await markRecordPublished(airtableRecordId, permalink)
-  } catch (err) {
-    airtableWarning = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[POST /api/publish-investigation] Airtable update failed:', airtableWarning)
+  if (!skipAirtable) {
+    try {
+      await markRecordPublished(airtableRecordId, permalink)
+    } catch (err) {
+      airtableWarning = err instanceof Error ? err.message : 'Unknown error'
+      console.error('[POST /api/publish-investigation] Airtable update failed:', airtableWarning)
+    }
   }
 
   return NextResponse.json({

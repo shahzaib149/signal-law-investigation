@@ -15,11 +15,22 @@ export interface Investigation {
   wordpress_url: string
   wordpress_press_release_url: string
   explanatory_video: string
+  /** Optional XPR / CMS story key from ACF — when set, overrides slug-derived guid */
+  xpr_story_guid?: string
   featured_media_url?: string | null
   wp_vrs?: string
   wp_cis?: string
   wp_thi?: string
   wp_escalation?: string
+  /** Institutional scores (Airtable) — Today's Topics */
+  vrs_score?: number
+  ems_score?: number
+  lri_score?: number
+  confidence_score?: number
+  severity_level?: string
+  priority_rank?: number | string
+  launch_recommendation?: string
+  risk_summary?: string
 }
 
 /** Lighter shape used on the status board */
@@ -69,6 +80,7 @@ export interface WordPressPost {
   status: string
   date: string
   link: string                  // permalink (becomes canonical after publish)
+  slug?: string                 // WordPress slug — XPR story-status-check / ingest guid
   featured_media: number        // media ID; 0 if none
   featured_media_url: string | null
   press_release_link: string | null   // ACF field: press_release_link (URL)
@@ -83,7 +95,10 @@ export interface WordPressPostRaw {
   content: { rendered?: string; raw?: string }
   status: string
   date: string
+  /** Post last modified (ISO) — used for dashboard sort */
+  modified?: string
   link: string
+  slug?: string
   featured_media: number
   meta?: Record<string, unknown>
   acf?: Record<string, unknown>   // ACF REST API fields

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/** Set `NEXT_PUBLIC_XPR_CLIENT_DEBUG=1` in `.env.local` and rebuild: browser console logs + raw `xpr` on validate/publish responses. */
+const XPR_CLIENT_DEBUG = process.env.NEXT_PUBLIC_XPR_CLIENT_DEBUG === '1'
+
 /* ─── Validation cache (localStorage, 24-hour TTL) ───────────────── */
 
 function cacheKey(link: string) {
@@ -118,6 +121,13 @@ interface Props {
   content:    string
   link:       string
   imageUrl?:  string
+  /** WordPress post slug — used as XPR `guid` when no explicit storyGuid */
+  slug?:       string
+  /** Airtable `XPR Story GUID` — must match what was / will be sent to XPR ingest */
+  storyGuid?: string
+  /** ISO-ish date from WordPress `date` — sent as `publishedAt` to XPR */
+  publishedAt?: string
+  investigationCategory?: string
   recordId?:  string
   isPdf?:     boolean
   onLinkChange?: (newLink: string) => void
@@ -139,7 +149,20 @@ function Spinner({ label }: { label: string }) {
 
 /* ─── Component ──────────────────────────────────────────────────── */
 
-export default function XprDistributionPanel({ title, summary, content, link, imageUrl, recordId, isPdf, onLinkChange }: Props) {
+export default function XprDistributionPanel({
+  title,
+  summary,
+  content,
+  link,
+  imageUrl,
+  slug,
+  storyGuid,
+  publishedAt,
+  investigationCategory,
+  recordId,
+  isPdf,
+  onLinkChange,
+}: Props) {
   const [open,          setOpen]          = useState(true)
   const [phase,         setPhase]         = useState<Phase>('checking-status')
   const [status,        setStatus]        = useState<XprStatus | null>(null)
@@ -154,9 +177,14 @@ export default function XprDistributionPanel({ title, summary, content, link, im
   const [replaceError,  setReplaceError]  = useState<string | null>(null)
 
   // Stable refs so callbacks don't cause cascade re-renders
-  const propsRef = useRef({ title, summary, content, link, imageUrl })
-  useEffect(() => { propsRef.current = { title, summary, content, link, imageUrl } },
-    [title, summary, content, link, imageUrl])
+  const propsRef = useRef({
+    title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory,
+  })
+  useEffect(() => {
+    propsRef.current = {
+      title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory,
+    }
+  }, [title, summary, content, link, imageUrl, slug, storyGuid, publishedAt, investigationCategory])
 
   /* ─── Validate ─── */
   const validate = useCallback(async (overrideContent?: string, force = false) => {
@@ -175,12 +203,31 @@ export default function XprDistributionPanel({ title, summary, content, link, im
     setPhase('validating')
     setValidateError(null)
     try {
+      const p = propsRef.current
+      const requestBody = {
+        title: t,
+        summary: s,
+        content: overrideContent ?? c,
+        link: l,
+        imageUrl: img,
+        slug: p.slug,
+        guid: p.storyGuid,
+        publishedAt: p.publishedAt,
+        investigationCategory: p.investigationCategory,
+        includeXprRaw: XPR_CLIENT_DEBUG,
+      }
+      if (XPR_CLIENT_DEBUG) {
+        console.log('[SignalLaw XPR] → POST /api/xpr-validate (payload to our server)', requestBody)
+      }
       const res  = await fetch('/api/xpr-validate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ title: t, summary: s, content: overrideContent ?? c, link: l, imageUrl: img }),
+        body:    JSON.stringify(requestBody),
       })
       const data = await res.json()
+      if (XPR_CLIENT_DEBUG) {
+        console.log('[SignalLaw XPR] ← POST /api/xpr-validate (response from our server)', data)
+      }
       if (!res.ok) throw new Error(data.error ?? 'Validation failed')
       const result: ValidationResult = {
         passed:         Boolean(data.passed),
@@ -200,12 +247,18 @@ export default function XprDistributionPanel({ title, summary, content, link, im
 
   /* ─── Check status ─── */
   const checkStatus = useCallback(async () => {
-    const l = propsRef.current.link
+    const { link: l, slug: sl, storyGuid: g } = propsRef.current
     setPhase('checking-status')
     setStatusError(null)
     try {
-      const res  = await fetch(`/api/xpr-status?link=${encodeURIComponent(l)}`)
+      const params = new URLSearchParams({ link: l })
+      if (g) params.set('guid', g)
+      else if (sl) params.set('slug', sl)
+      const statusUrl = `/api/xpr-status?${params.toString()}`
+      if (XPR_CLIENT_DEBUG) console.log('[SignalLaw XPR] → GET /api/xpr-status', statusUrl)
+      const res  = await fetch(statusUrl)
       const data = await res.json()
+      if (XPR_CLIENT_DEBUG) console.log('[SignalLaw XPR] ← GET /api/xpr-status', data)
       if (!res.ok) throw new Error(data.error ?? 'Status check failed')
       const s = normalize(data)
       setStatus(s)
@@ -233,16 +286,37 @@ export default function XprDistributionPanel({ title, summary, content, link, im
     setPhase('publishing')
     setPublishError(null)
     try {
+      const publishBody = {
+        title,
+        summary,
+        content,
+        link,
+        imageUrl,
+        packageId: selectedPkg,
+        slug,
+        guid: storyGuid,
+        publishedAt,
+        investigationCategory,
+        includeXprRaw: XPR_CLIENT_DEBUG,
+      }
+      if (XPR_CLIENT_DEBUG) console.log('[SignalLaw XPR] → POST /api/xpr-publish', publishBody)
       const res  = await fetch('/api/xpr-publish', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ title, summary, content, link, imageUrl, packageId: selectedPkg }),
+        body:    JSON.stringify(publishBody),
       })
       const data = await res.json()
+      if (XPR_CLIENT_DEBUG) console.log('[SignalLaw XPR] ← POST /api/xpr-publish', data)
       if (!res.ok) throw new Error(data.error ?? 'Distribution failed')
 
-      const statusRes  = await fetch(`/api/xpr-status?link=${encodeURIComponent(link)}`)
+      const statusParams = new URLSearchParams({ link })
+      if (storyGuid) statusParams.set('guid', storyGuid)
+      else if (slug) statusParams.set('slug', slug)
+      const postPubStatusUrl = `/api/xpr-status?${statusParams.toString()}`
+      if (XPR_CLIENT_DEBUG) console.log('[SignalLaw XPR] → GET /api/xpr-status (post-publish)', postPubStatusUrl)
+      const statusRes  = await fetch(postPubStatusUrl)
       const statusData = await statusRes.json()
+      if (XPR_CLIENT_DEBUG) console.log('[SignalLaw XPR] ← GET /api/xpr-status (post-publish)', statusData)
       setStatus(normalize(statusData))
       setPhase('distributed')
     } catch (err) {

@@ -15,6 +15,36 @@ function authHeaders() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pickField(r: any, keys: string[]): unknown {
+  for (const k of keys) {
+    const v = r.fields?.[k]
+    if (v !== undefined && v !== null && v !== '') return v
+  }
+  return undefined
+}
+
+function pickNum(r: any, keys: string[]): number | undefined {
+  const v = pickField(r, keys)
+  if (v === undefined) return undefined
+  if (typeof v === 'number' && !Number.isNaN(v)) return v
+  const n = parseFloat(String(v).replace(/,/g, ''))
+  return Number.isFinite(n) ? n : undefined
+}
+
+function pickStr(r: any, keys: string[]): string | undefined {
+  const v = pickField(r, keys)
+  if (v === undefined) return undefined
+  if (Array.isArray(v)) {
+    const first = v[0]
+    if (first === undefined || first === null) return undefined
+    const s = String(first).trim()
+    return s.length ? s : undefined
+  }
+  const s = String(v).trim()
+  return s.length ? s : undefined
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapToInvestigation(r: any): Investigation {
   return {
     id:                          r.id,
@@ -30,6 +60,17 @@ function mapToInvestigation(r: any): Investigation {
     wordpress_url:               r.fields['WordPress Research Profile URL'] ?? r.fields['WordPress URL'] ?? '',
     wordpress_press_release_url: r.fields['WordPress Press Release URL']   ?? '',
     explanatory_video:           r.fields['Explanatory Video']             ?? '',
+    xpr_story_guid:                r.fields['XPR Story GUID'] != null && r.fields['XPR Story GUID'] !== ''
+      ? String(r.fields['XPR Story GUID'])
+      : undefined,
+    vrs_score:                     pickNum(r, ['VRS Score', 'vrs_score']),
+    ems_score:                   pickNum(r, ['EMS Score', 'ems_score']),
+    lri_score:                   pickNum(r, ['LRI Score', 'lri_score']),
+    confidence_score:            pickNum(r, ['Confidence Score', 'confidence_score']),
+    severity_level:              pickStr(r, ['Severity Level', 'severity_level']),
+    priority_rank:               pickField(r, ['Priority Rank', 'priority_rank']) as number | string | undefined,
+    launch_recommendation:       pickStr(r, ['Launch Recommendation', 'launch_recommendation']),
+    risk_summary:                pickStr(r, ['Risk Summary', 'risk_summary']),
   }
 }
 
@@ -45,13 +86,14 @@ function mapToStatusItem(r: any): StatusItem {
   }
 }
 
-/** GET all Pending records — sorted newest first */
+/** GET records for Today's Topics — new AI queue (Pending / Intake / unset), newest activity first */
 export async function fetchPendingTopics(): Promise<Investigation[]> {
   const params = new URLSearchParams({
-    filterByFormula: `{Investigation Status}='Pending'`,
-    'sort[0][field]':     'Submitted At',
+    filterByFormula:
+      `OR({Investigation Status}='Pending', {Investigation Status}='Intake', {Investigation Status}=BLANK())`,
+    'sort[0][field]':     'Last Modified',
     'sort[0][direction]': 'desc',
-    maxRecords: '25',
+    maxRecords: '50',
   })
 
   const res = await fetch(`${BASE_URL}?${params}`, {
@@ -100,7 +142,7 @@ export async function fetchStatusItems(): Promise<StatusItem[]> {
  */
 export async function fetchCompletedInvestigations(): Promise<Investigation[]> {
   const params = new URLSearchParams({
-    filterByFormula: `OR({Investigation Status}='Intake', {Investigation Status}='Active Research', {Investigation Status}='Approved', {Investigation Status}='Published')`,
+    filterByFormula: `OR({Investigation Status}='Intake', {Investigation Status}='Generating', {Investigation Status}='Active Research', {Investigation Status}='Approved', {Investigation Status}='Published')`,
     'sort[0][field]':     'Last Modified',
     'sort[0][direction]': 'desc',
     maxRecords: '100',
